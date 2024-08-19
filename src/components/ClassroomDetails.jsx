@@ -70,7 +70,7 @@ function ClassroomDetails() {
 
     if (!classroom) {
         return <Container className="text-center mt-5"><h2>ไม่พบห้องเรียนที่ระบุ</h2></Container>;
-    }
+    } 
 
     return (
         <>
