@@ -10,6 +10,7 @@ import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey } from 're
 
 
 function ClassroomDetails() {
+
     const { classId } = useParams();
     const [classroom, setClassroom] = useState(null);
     const [students, setStudents] = useState([]);
@@ -84,26 +85,6 @@ function ClassroomDetails() {
                                 <Card.Text className="lead">{classroom.ClassDescription}</Card.Text>
                             </Card.Body>
                         </Card>
-                        
-                        <Card className="shadow-sm mb-4">
-                            <Card.Body>
-                                <Card.Title className="h4 mb-4">ภาพรวมห้องเรียน</Card.Title>
-                                <ListGroup variant="flush">
-                                    <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                                        <div><FaUsers className="me-2" /> จำนวนนักเรียน</div>
-                                        <span>{students.length} คน</span>
-                                    </ListGroup.Item>
-                                    <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                                        <div><FaBook className="me-2" /> จำนวนบทเรียน</div>
-                                        <span>0 บท</span>
-                                    </ListGroup.Item>
-                                    <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                                        <div><FaClipboardList className="me-2" /> จำนวนแบบทดสอบ</div>
-                                        <span>0 ชุด</span>
-                                    </ListGroup.Item>
-                                </ListGroup>
-                            </Card.Body>
-                        </Card>
                     </Col>
                     
                     <Col lg={4}>
@@ -127,9 +108,25 @@ function ClassroomDetails() {
                             </Card.Body>
                         </Card>
                         
-                        <Button variant="primary" size="lg" className="w-100">
-                            <FaChalkboardTeacher className="me-2" /> เข้าสู่ห้องเรียน
-                        </Button>
+                        <Card className="shadow-sm mb-4">
+                            <Card.Body>
+                                <Card.Title className="h4 mb-4">ภาพรวมห้องเรียน</Card.Title>
+                                <ListGroup variant="flush">
+                                    <ListGroup.Item className="d-flex justify-content-between align-items-center">
+                                        <div><FaUsers className="me-2" /> จำนวนนักเรียน</div>
+                                        <span>{students.length} คน</span>
+                                    </ListGroup.Item>
+                                    <ListGroup.Item className="d-flex justify-content-between align-items-center">
+                                        <div><FaBook className="me-2" /> จำนวนบทเรียน</div>
+                                        <span>0 บท</span>
+                                    </ListGroup.Item>
+                                    <ListGroup.Item className="d-flex justify-content-between align-items-center">
+                                        <div><FaClipboardList className="me-2" /> จำนวนแบบทดสอบ</div>
+                                        <span>0 ชุด</span>
+                                    </ListGroup.Item>
+                                </ListGroup>
+                            </Card.Body>
+                        </Card>
                     </Col>
                 </Row>
             </Container>
