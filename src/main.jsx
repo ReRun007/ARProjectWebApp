@@ -1,21 +1,18 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import App from './App.jsx'
-import Login from './components/Login.jsx'
-import Register from './components/Register.jsx'
-import Home from './components/Home.jsx'
-import ProtectedRoute from './auth/ProtectedRoute.jsx'
-import Dashboard from './components/Dashboard.jsx'
-import Header from './components/Header.jsx'
-import ClassroomDetails from './components/ClassroomDetails.jsx'
-
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App.jsx';
+import Login from './components/auth/Login.jsx';
+import Register from './components/auth/Register.jsx';
+import Home from './components/teacher/Home.jsx';
+import ProtectedRoute from './auth/ProtectedRoute.jsx';
+import Header from './components/teacher/Header.jsx';
+import ClassroomDetails from './components/teacher/ClassroomDetails.jsx';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 import './index.css'
 import { UserAuthContextProvider } from './context/UserAuthContext.jsx'
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
-
 
 const router = createBrowserRouter([
   {
@@ -33,15 +30,14 @@ const router = createBrowserRouter([
   {
     path: "/home",
     element: <ProtectedRoute><Home /></ProtectedRoute>,
-  },{
-    path: "/dashboard",
-    element: <Dashboard />,
-  },{
+  },
+  {
     path: "/header",
     element: <Header />,
-  },{
+  },
+  {
     path: "/classroom/:classId",  
-    element: <ClassroomDetails />
+    element: <ProtectedRoute><ClassroomDetails /></ProtectedRoute>
   }
 ]);
 

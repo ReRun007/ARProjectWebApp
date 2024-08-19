@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUserAuth } from '../context/UserAuthContext';
+import { useUserAuth } from '../../context/UserAuthContext';
 import { Button, Container, Row, Col, Card, Modal, Form, Spinner } from 'react-bootstrap';
 import { doc, getDoc, collection, setDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
-import Header from './Header.jsx';
+import { db } from '../../firebase';
+import Header from './Header';
 import { FaChalkboardTeacher, FaPlus } from 'react-icons/fa';
 
 function Home() {

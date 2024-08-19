@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Form, Alert, Button, Container, Card, Row, Col } from 'react-bootstrap';
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { collection, setDoc, doc } from 'firebase/firestore';
-import { useUserAuth } from '../context/UserAuthContext';
+import { useUserAuth } from '../../context/UserAuthContext';
 import { FaUser, FaEnvelope, FaLock, FaCalendar, FaSchool } from 'react-icons/fa';
 
 function Register() {

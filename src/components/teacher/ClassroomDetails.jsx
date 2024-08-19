@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from './Header';
 
-import { db } from '../firebase';
+import { db } from '../../firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 
 import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Table } from 'react-bootstrap';

@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUserAuth } from '../context/UserAuthContext';
+import { useUserAuth } from '../../context/UserAuthContext';
 
-import { storage } from '../firebase';
+import { storage, db } from '../../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
-import { db } from '../firebase';
 import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 
-
 import { Navbar, Nav, NavDropdown, Button, Offcanvas, Container, Image, Accordion } from 'react-bootstrap';
-import { FaUser, FaSignOutAlt, FaHome, FaBook, FaCog, FaChalkboardTeacher,FaChevronRight,FaSearch } from 'react-icons/fa';
+import { FaUser, FaSignOutAlt, FaHome, FaBook, FaCog, FaChalkboardTeacher, FaChevronRight, FaSearch } from 'react-icons/fa';
 
 function Header() {
     const teacherId = sessionStorage.getItem('teacherId');
