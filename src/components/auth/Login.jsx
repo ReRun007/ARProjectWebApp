@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { Form, Alert, Button, Container, Card, Row, Col } from 'react-bootstrap';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
+
+
 
 function Login() {
     const [email, setEmail] = useState("");
@@ -18,12 +22,33 @@ function Login() {
         try {
             const userCredential = await logIn(email, password);
             const user = userCredential.user;
-            sessionStorage.setItem('teacherId', user.uid);
-            navigate("/home");
-        } catch(err) {
+            
+            // ตรวจสอบประเภทผู้ใช้จาก Firestore
+            const teacherDocRef = doc(db, "Teachers", user.uid);
+            const studentDocRef = doc(db, "Students", user.uid);
+            
+            const teacherDocSnap = await getDoc(teacherDocRef);
+            const studentDocSnap = await getDoc(studentDocRef);
+
+            if (teacherDocSnap.exists()) {
+                // ผู้ใช้เป็นครู
+                sessionStorage.setItem('userType', 'teacher');
+                sessionStorage.setItem('teacherId', user.uid);
+                navigate("/teacher/home");
+            } else if (studentDocSnap.exists()) {
+                // ผู้ใช้เป็นนักเรียน
+                sessionStorage.setItem('userType', 'student');
+                sessionStorage.setItem('studentId', user.uid);
+                navigate("/student/home");
+            } else {
+                // ไม่พบข้อมูลผู้ใช้
+                throw new Error("User data not found");
+            }
+        } catch (err) {
             setError(err.message);
+            console.error("Login error:", err);
         }
-    }
+    };
 
     return (
         <Container className="py-5" >

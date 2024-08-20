@@ -3,9 +3,11 @@ import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import Login from './components/auth/Login.jsx';
 import Register from './components/auth/Register.jsx';
-import Home from './components/teacher/Home.jsx';
+import TeacherHome from './components/teacher/Home.jsx';
+import SutdentHome from './components/student/Home.jsx';
 import ProtectedRoute from './auth/ProtectedRoute.jsx';
-import Header from './components/teacher/Header.jsx';
+import TeacherHeader from './components/teacher/Header.jsx';
+import StudentHeader from './components/student/Header.jsx';
 import ClassroomDetails from './components/teacher/ClassroomDetails.jsx';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -28,12 +30,20 @@ const router = createBrowserRouter([
     element: <Register />,
   },
   {
-    path: "/home",
-    element: <ProtectedRoute><Home /></ProtectedRoute>,
+    path: "//teacher/home",
+    element: <ProtectedRoute><TeacherHome /></ProtectedRoute>,
+  },
+  {
+    path: "/student/home",
+    element: <ProtectedRoute><SutdentHome /></ProtectedRoute>,
   },
   {
     path: "/header",
-    element: <Header />,
+    element: <TeacherHeader />,
+  },
+  {
+    path: "/header",
+    element: <StudentHeader />,
   },
   {
     path: "/classroom/:classId",  
