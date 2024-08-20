@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Form, Alert, Button, Container, Card, Row, Col } from 'react-bootstrap';
-import { db } from '../../firebase';
+import { Form, Alert, Button, Container, Card, Row, Col, Image } from 'react-bootstrap';
+import { db, storage } from '../../firebase';
 import { collection, setDoc, doc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { useUserAuth } from '../../context/UserAuthContext';
-import { FaUser, FaEnvelope, FaLock, FaCalendar, FaSchool } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaLock, FaCalendar, FaSchool, FaUserGraduate, FaChalkboardTeacher, FaImage } from 'react-icons/fa';
 
 function Register() {
     const [firstName, setName] = useState("");
@@ -16,10 +17,43 @@ function Register() {
     const [gender, setGender] = useState("");
     const [birthdate, setBirthdate] = useState("");
     const [institution, setInstitution] = useState("");
+    const [userType, setUserType] = useState("");
     const [error, setError] = useState("");
+    const [avatarUrl, setAvatarUrl] = useState("");
+    const [avatarFile, setAvatarFile] = useState(null);
+    const [defaultAvatars, setDefaultAvatars] = useState([]);
     const { signUp } = useUserAuth();
 
     let navigate = useNavigate();
+
+    useEffect(() => {
+        // Fetch default avatars from Firebase Storage
+        const fetchDefaultAvatars = async () => {
+            const avatarsRef = ref(storage, 'Profile/Avata');
+            const avatarsList = await listAll(avatarsRef);
+            const avatarUrls = await Promise.all(
+                avatarsList.items.map(async (item) => {
+                    const url = await getDownloadURL(item);
+                    return { name: item.name, url };
+                })
+            );
+            setDefaultAvatars(avatarUrls);
+        };
+
+        fetchDefaultAvatars();
+    }, []);
+
+    const handleAvatarChange = (e) => {
+        if (e.target.files[0]) {
+            setAvatarFile(e.target.files[0]);
+            setAvatarUrl(URL.createObjectURL(e.target.files[0]));
+        }
+    };
+
+    const handleDefaultAvatarSelect = (url) => {
+        setAvatarUrl(url);
+        setAvatarFile(null);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -30,10 +64,31 @@ function Register() {
             return;
         }
 
+        if (!userType) {
+            setError("Please select user type (Student or Teacher)");
+            return;
+        }
+
         try {
             const userCredential = await signUp(email, password);
             const user = userCredential.user;
-            const docRef = doc(db, "Teachers", user.uid);
+            const collectionName = userType === 'student' ? 'Students' : 'Teachers';
+            const docRef = doc(db, collectionName, user.uid);
+
+            let profileImageUrl = avatarUrl;
+
+            // If user uploaded a custom avatar
+            if (avatarFile) {
+                const avatarRef = ref(storage, `User/${user.email}/Profile/${avatarFile.name}`);
+                await uploadBytes(avatarRef, avatarFile);
+                profileImageUrl = await getDownloadURL(avatarRef);
+            } else if (avatarUrl) {
+                // If a default avatar was selected, we keep the existing Storage path
+                profileImageUrl = avatarUrl;
+            } else {
+                // If no avatar was selected, use a default one
+                profileImageUrl = "gs://arproject-b2e7b.appspot.com/Profile/Avata/a01.jpg";
+            }
 
             await setDoc(docRef, {
                 FirstName: firstName,
@@ -43,7 +98,8 @@ function Register() {
                 Gender: gender,
                 BirthDate: birthdate,
                 Institution: institution,
-                URLImage: "gs://arproject-b2e7b.appspot.com/Profile/Avata/a09.jpg"
+                UserType: userType,
+                URLImage: profileImageUrl
             });
 
             navigate("/");
@@ -62,6 +118,53 @@ function Register() {
                             {error && <Alert variant='danger'>{error}</Alert>}
 
                             <Form onSubmit={handleSubmit}>
+                                <Form.Group className="mb-3 text-center">
+                                    <Form.Label>รูปโปรไฟล์</Form.Label>
+                                    <div className="d-flex justify-content-center mb-3">
+                                        <Image src={avatarUrl || 'https://via.placeholder.com/150'} roundedCircle width={150} height={150} />
+                                    </div>
+                                    <div className="d-flex justify-content-center flex-wrap mb-3">
+                                        {defaultAvatars.map((avatar, index) => (
+                                            <Image
+                                                key={index}
+                                                src={avatar.url}
+                                                roundedCircle
+                                                width={50}
+                                                height={50}
+                                                className="m-1 cursor-pointer"
+                                                onClick={() => handleDefaultAvatarSelect(avatar.url)}
+                                            />
+                                        ))}
+                                    </div>
+                                    <Form.Control
+                                        type="file"
+                                        onChange={handleAvatarChange}
+                                        accept="image/*"
+                                    />
+                                </Form.Group>
+
+                                <Form.Group className="mb-3" controlId="userType">
+                                    <Form.Label>ประเภทผู้ใช้</Form.Label>
+                                    <div>
+                                        <Form.Check
+                                            inline
+                                            type="radio"
+                                            label="นักเรียน"
+                                            name="userType"
+                                            id="student"
+                                            onChange={() => setUserType('student')}
+                                        />
+                                        <Form.Check
+                                            inline
+                                            type="radio"
+                                            label="ครู"
+                                            name="userType"
+                                            id="teacher"
+                                            onChange={() => setUserType('teacher')}
+                                        />
+                                    </div>
+                                </Form.Group>
+
                                 <Row>
                                     <Col md={6}>
                                         <Form.Group className="mb-3" controlId="name">
