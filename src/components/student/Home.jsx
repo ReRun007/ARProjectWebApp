@@ -6,6 +6,8 @@ import { collection, query, where, getDocs, addDoc, orderBy, limit } from 'fireb
 import Header from './Header';
 import { FaBook, FaClipboardList, FaCalendarAlt, FaPlus, FaClock } from 'react-icons/fa';
 
+import EmptyClassroomState from './EmptyClassroomState';
+
 function StudentHome() {
     const [courses, setCourses] = useState([]);
     const [upcomingAssignments, setUpcomingAssignments] = useState([]);
@@ -17,10 +19,15 @@ function StudentHome() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (user) {
-                setLoading(true);
-                await Promise.all([fetchCourses(), fetchUpcomingAssignments()]);
-                setLoading(false);
+            if (user && user.uid) {
+                try {
+                    setLoading(true);
+                    await Promise.all([fetchCourses(), fetchUpcomingAssignments()]);
+                } catch (error) {
+                    console.error("Error fetching data:", error);
+                } finally {
+                    setLoading(false);
+                }
             }
         };
 
@@ -28,6 +35,7 @@ function StudentHome() {
     }, [user]);
 
     const fetchCourses = async () => {
+
         const enrollmentsQuery = query(
             collection(db, "ClassEnrollments"),
             where("studentId", "==", user.uid)
@@ -35,13 +43,17 @@ function StudentHome() {
         const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
         const classIds = enrollmentsSnapshot.docs.map(doc => doc.data().classId);
 
-        const coursesQuery = query(
-            collection(db, "Classrooms"),
-            where("ClassId", "in", classIds)
-        );
-        const coursesSnapshot = await getDocs(coursesQuery);
-        const coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setCourses(coursesData);
+        if (classIds.length > 0) {  // เพิ่มการตรวจสอบนี้
+            const coursesQuery = query(
+                collection(db, "Classrooms"),
+                where("ClassId", "in", classIds)
+            );
+            const coursesSnapshot = await getDocs(coursesQuery);
+            const coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setCourses(coursesData);
+        } else {
+            setCourses([]);  // ตั้งค่าเป็นอาร์เรย์ว่างถ้าไม่มี classIds
+        }
     };
 
     const fetchUpcomingAssignments = async () => {
@@ -115,6 +127,7 @@ function StudentHome() {
 
                 <Row>
                     <Col lg={8}>
+                        {/* การ์ดแสดงห้องเรียน */}
                         <Card className="mb-4 shadow-sm">
                             <Card.Header className="bg-primary text-white d-flex justify-content-between align-items-center">
                                 <h2 className="mb-0">วิชาเรียนของคุณ</h2>
@@ -123,23 +136,27 @@ function StudentHome() {
                                 </Button>
                             </Card.Header>
                             <Card.Body>
-                                <Row xs={1} md={2} className="g-4">
-                                    {courses.map((course) => (
-                                        <Col key={course.id}>
-                                            <Card className="h-100 shadow-sm">
-                                                <Card.Body>
-                                                    <Card.Title>{course.ClassName}</Card.Title>
-                                                    <Card.Text>{course.ClassDescription}</Card.Text>
-                                                </Card.Body>
-                                                <Card.Footer>
-                                                    <Button variant="outline-primary" href={`/student/course/${course.id}`}>
-                                                        เข้าสู่ห้องเรียน
-                                                    </Button>
-                                                </Card.Footer>
-                                            </Card>
-                                        </Col>
-                                    ))}
-                                </Row>
+                                {courses.length > 0 ? (
+                                    <Row xs={1} md={2} className="g-4">
+                                        {courses.map((course) => (
+                                            <Col key={course.id}>
+                                                <Card className="h-100 shadow-sm">
+                                                    <Card.Body>
+                                                        <Card.Title>{course.ClassName}</Card.Title>
+                                                        <Card.Text>{course.ClassDescription}</Card.Text>
+                                                    </Card.Body>
+                                                    <Card.Footer>
+                                                        <Button variant="outline-primary" href={`/student/course/${course.id}`}>
+                                                            เข้าสู่ห้องเรียน
+                                                        </Button>
+                                                    </Card.Footer>
+                                                </Card>
+                                            </Col>
+                                        ))}
+                                    </Row>
+                                ) : (
+                                    <EmptyClassroomState onJoinClass={() => setShowJoinModal(true)} />
+                                )}
                             </Card.Body>
                         </Card>
                     </Col>
@@ -184,9 +201,9 @@ function StudentHome() {
                     <Form>
                         <Form.Group className="mb-3">
                             <Form.Label>รหัสห้องเรียน</Form.Label>
-                            <Form.Control 
-                                type="text" 
-                                placeholder="กรอกรหัสห้องเรียน" 
+                            <Form.Control
+                                type="text"
+                                placeholder="กรอกรหัสห้องเรียน"
                                 value={classCode}
                                 onChange={(e) => setClassCode(e.target.value)}
                             />

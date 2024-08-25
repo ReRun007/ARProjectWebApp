@@ -17,7 +17,6 @@ function Home() {
     const [classDescription, setClassDescription] = useState('');
     const [loading, setLoading] = useState(true);
 
-    // ฟังก์ชันสำหรับดึงข้อมูลห้องเรียนที่ผู้ใช้ปัจจุบันสร้าง
     const fetchClassrooms = async () => {
         if (user && user.uid) {
             try {
@@ -30,9 +29,12 @@ function Home() {
                 const classroomsData = await Promise.all(
                     querySnapshot.docs.map(async (doc) => {
                         const classroom = doc.data();
-                        const studentsQuery = query(collection(db, 'Students'), where('ClassId', '==', classroom.ClassId));
-                        const studentsSnapshot = await getDocs(studentsQuery);
-                        const studentCount = studentsSnapshot.size;
+                        const enrollmentsQuery = query(
+                            collection(db, 'ClassEnrollments'),
+                            where('classId', '==', classroom.ClassId)
+                        );
+                        const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+                        const studentCount = enrollmentsSnapshot.size;
                         return { ...classroom, studentCount };
                     })
                 );
@@ -135,31 +137,35 @@ function Home() {
                     </Button>
                 </div>
 
-                <Row xs={1} md={2} lg={3} xl={4} className="g-4">
-                    {classrooms.map((classroom, idx) => (
-                        <Col key={classroom.ClassId}>
-                            <Card className="h-100 shadow-sm hover-shadow transition">
-                                <Card.Body className="d-flex flex-column">
-                                    <div className="text-center mb-3">
-                                        <FaChalkboardTeacher size={50} className="text-primary" />
-                                    </div>
-                                    <Card.Title className="text-center">{classroom.ClassName}</Card.Title>
-                                    <Card.Text className="text-muted text-center">
-                                        {classroom.ClassDescription || 'ไม่มีรายละเอียด'}<br />
-                                        จำนวนนักเรียน: {classroom.studentCount} คน
-                                    </Card.Text>
-                                    <Button
-                                        variant="outline-primary"
-                                        className="mt-auto"
-                                        onClick={() => navigate(`/classroom/${classroom.ClassId}`)} 
-                                    >
-                                        เข้าสู่ห้องเรียน
-                                    </Button>
-                                </Card.Body>
-                            </Card>
-                        </Col>
-                    ))}
-                </Row>
+                {classrooms.length > 0 ? (
+                    <Row xs={1} md={2} lg={3} xl={4} className="g-4">
+                        {classrooms.map((classroom) => (
+                            <Col key={classroom.ClassId}>
+                                <Card className="h-100 shadow-sm hover-shadow transition">
+                                    <Card.Body className="d-flex flex-column">
+                                        <div className="text-center mb-3">
+                                            <FaChalkboardTeacher size={50} className="text-primary" />
+                                        </div>
+                                        <Card.Title className="text-center">{classroom.ClassName}</Card.Title>
+                                        <Card.Text className="text-muted text-center">
+                                            {classroom.ClassDescription || 'ไม่มีรายละเอียด'}<br />
+                                            จำนวนนักเรียน: {classroom.studentCount} คน
+                                        </Card.Text>
+                                        <Button
+                                            variant="outline-primary"
+                                            className="mt-auto"
+                                            onClick={() => navigate(`/classroom/${classroom.ClassId}`)}
+                                        >
+                                            เข้าสู่ห้องเรียน
+                                        </Button>
+                                    </Card.Body>
+                                </Card>
+                            </Col>
+                        ))}
+                    </Row>
+                ) : (
+                    <EmptyClassroomState onAddClassroom={() => setShowModal(true)} />
+                )}
 
                 {/* Modal สำหรับเพิ่มห้องเรียน */}
                 <Modal show={showModal} onHide={() => setShowModal(false)}>

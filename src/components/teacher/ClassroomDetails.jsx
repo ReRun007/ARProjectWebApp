@@ -8,6 +8,8 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Table } from 'react-bootstrap';
 import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey } from 'react-icons/fa';
 
+import StudentListModal from './model/StudentListModal';
+
 
 function ClassroomDetails() {
 
@@ -27,14 +29,29 @@ function ClassroomDetails() {
             const docSnap = await getDoc(docRef);
             if (docSnap.exists()) {
                 setClassroom(docSnap.data());
-                
-                const studentsQuery = query(collection(db, 'Students'), where('ClassId', '==', classId));
-                const studentsSnapshot = await getDocs(studentsQuery);
-                const studentList = studentsSnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
 
+                // ดึงข้อมูลการลงทะเบียนจาก ClassEnrollments
+                const enrollmentsQuery = query(collection(db, 'ClassEnrollments'), where('classId', '==', classId));
+                const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+
+                // สร้างอาร์เรย์ของ Promise สำหรับการดึงข้อมูลนักเรียนแต่ละคน
+                const studentPromises = enrollmentsSnapshot.docs.map(async (enrollDoc) => {
+                    const studentRef = doc(db, 'Students', enrollDoc.data().studentId);
+                    const studentSnap = await getDoc(studentRef);
+                    if (studentSnap.exists()) {
+                        return {
+                            id: studentSnap.id,
+                            ...studentSnap.data(),
+                            enrollmentDate: enrollDoc.data().enrollmentDate
+                        };
+                    }
+                    return null;
+                });
+
+                // รอให้ทุก Promise เสร็จสิ้น
+                const studentList = (await Promise.all(studentPromises)).filter(student => student !== null);
+
+                // เรียงลำดับตามชื่อ
                 studentList.sort((a, b) => a.FirstName.localeCompare(b.FirstName));
 
                 setStudents(studentList);
@@ -50,12 +67,12 @@ function ClassroomDetails() {
 
     function LoadingScreen() {
         return (
-          <Container className="d-flex flex-column justify-content-center align-items-center" style={{height: '100vh'}}>
-            <Spinner animation="border" variant="primary" style={{width: '3rem', height: '3rem'}} />
-            <h4 className="mt-3">กำลังโหลดข้อมูล...</h4>
-          </Container>
+            <Container className="d-flex flex-column justify-content-center align-items-center" style={{ height: '100vh' }}>
+                <Spinner animation="border" variant="primary" style={{ width: '3rem', height: '3rem' }} />
+                <h4 className="mt-3">กำลังโหลดข้อมูล...</h4>
+            </Container>
         );
-      }
+    }
 
     useEffect(() => {
         if (classId) {
@@ -71,7 +88,7 @@ function ClassroomDetails() {
 
     if (!classroom) {
         return <Container className="text-center mt-5"><h2>ไม่พบห้องเรียนที่ระบุ</h2></Container>;
-    } 
+    }
 
     return (
         <>
@@ -86,7 +103,7 @@ function ClassroomDetails() {
                             </Card.Body>
                         </Card>
                     </Col>
-                    
+
                     <Col lg={4}>
                         <Card className="shadow-sm mb-4">
                             <Card.Body>
@@ -107,7 +124,7 @@ function ClassroomDetails() {
                                 </ListGroup>
                             </Card.Body>
                         </Card>
-                        
+
                         <Card className="shadow-sm mb-4">
                             <Card.Body>
                                 <Card.Title className="h4 mb-4">ภาพรวมห้องเรียน</Card.Title>
@@ -146,40 +163,11 @@ function ClassroomDetails() {
                 </Modal.Footer>
             </Modal>
 
-            <Modal show={showStudents} onHide={() => setShowStudents(false)} size="lg">
-                <Modal.Header closeButton>
-                    <Modal.Title>รายชื่อนักเรียนในห้องเรียน</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Table striped bordered hover>
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>ชื่อ</th>
-                                <th>นามสกุล</th>
-                                <th>อีเมล</th>
-                                <th>Username</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {students.map((student, index) => (
-                                <tr key={student.id}>
-                                    <td>{index + 1}</td>
-                                    <td>{student.FirstName}</td>
-                                    <td>{student.LastName}</td>
-                                    <td>{student.Email}</td>
-                                    <td>{student.Username}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowStudents(false)}>
-                        ปิด
-                    </Button>
-                </Modal.Footer>
-            </Modal>
+            <StudentListModal
+                show={showStudents}
+                onHide={() => setShowStudents(false)}
+                students={students}
+            />
         </>
     );
 }
