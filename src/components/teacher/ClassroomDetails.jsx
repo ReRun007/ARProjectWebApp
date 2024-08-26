@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import Header from './Header';
 
 import { db } from '../../firebase';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 
 import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Table } from 'react-bootstrap';
 import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey } from 'react-icons/fa';
@@ -20,6 +20,8 @@ function ClassroomDetails() {
     const [loading, setLoading] = useState(true);
     const [showClassCode, setShowClassCode] = useState(false);
     const [showStudents, setShowStudents] = useState(false);
+    const [alertMessage, setAlertMessage] = useState(null);
+
 
 
     const fetchClassroomData = async () => {
@@ -63,6 +65,34 @@ function ClassroomDetails() {
             console.error("Error fetching classroom data: ", error);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRemoveStudent = async (studentId) => {
+        try {
+            // ลบการลงทะเบียนของนักเรียนจาก ClassEnrollments
+            const enrollmentQuery = query(
+                collection(db, 'ClassEnrollments'),
+                where('studentId', '==', studentId),
+                where('classId', '==', classId)
+            );
+            const enrollmentSnapshot = await getDocs(enrollmentQuery);
+            if (!enrollmentSnapshot.empty) {
+                const enrollmentDoc = enrollmentSnapshot.docs[0];
+                await deleteDoc(enrollmentDoc.ref);
+
+                // อัพเดตรายชื่อนักเรียนในหน้าจอ
+                setStudents(prevStudents => prevStudents.filter(student => student.id !== studentId));
+
+                // แสดงข้อความแจ้งเตือนว่านำนักเรียนออกสำเร็จ
+                setAlertMessage({ type: 'success', text: 'นำนักเรียนออกจากห้องเรียนสำเร็จ' });
+            } else {
+                throw new Error('ไม่พบข้อมูลการลงทะเบียนของนักเรียน');
+            }
+        } catch (error) {
+            console.error("Error removing student: ", error);
+            // แสดงข้อความแจ้งเตือนว่าเกิดข้อผิดพลาด
+            setAlertMessage({ type: 'danger', text: `เกิดข้อผิดพลาด: ${error.message}` });
         }
     };
 
@@ -159,6 +189,7 @@ function ClassroomDetails() {
                 show={showStudents}
                 onHide={() => setShowStudents(false)}
                 students={students}
+                onRemoveStudent={handleRemoveStudent}
             />
         </>
     );
