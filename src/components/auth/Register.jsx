@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Form, Alert, Button, Container, Card, Row, Col, Image } from 'react-bootstrap';
 import { db, storage } from '../../firebase';
-import { collection, setDoc, doc } from 'firebase/firestore';
+import { collection, setDoc, doc, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { FaUser, FaEnvelope, FaLock, FaCalendar, FaSchool, FaUserGraduate, FaChalkboardTeacher, FaImage } from 'react-icons/fa';
@@ -22,12 +22,11 @@ function Register() {
     const [avatarUrl, setAvatarUrl] = useState("");
     const [avatarFile, setAvatarFile] = useState(null);
     const [defaultAvatars, setDefaultAvatars] = useState([]);
-    const { signUp } = useUserAuth();
+    const { signUp, user } = useUserAuth();
 
     let navigate = useNavigate();
 
     useEffect(() => {
-        // Fetch default avatars from Firebase Storage
         const fetchDefaultAvatars = async () => {
             const avatarsRef = ref(storage, 'Profile/Avata');
             const avatarsList = await listAll(avatarsRef);
@@ -40,8 +39,35 @@ function Register() {
             setDefaultAvatars(avatarUrls);
         };
 
+        const checkAuthStatus = async () => {
+            if (user) {
+                const userType = await checkUserType(user.uid);
+                if (userType === 'teacher') {
+                    navigate("/teacher/home");
+                } else if (userType === 'student') {
+                    navigate("/student/home");
+                }
+            }
+        };
+
         fetchDefaultAvatars();
-    }, []);
+        checkAuthStatus();
+    }, [user, navigate]);
+
+    const checkUserType = async (uid) => {
+        const teacherDocRef = doc(db, "Teachers", uid);
+        const studentDocRef = doc(db, "Students", uid);
+        
+        const teacherDocSnap = await getDoc(teacherDocRef);
+        const studentDocSnap = await getDoc(studentDocRef);
+
+        if (teacherDocSnap.exists()) {
+            return 'teacher';
+        } else if (studentDocSnap.exists()) {
+            return 'student';
+        }
+        return null;
+    };
 
     const handleAvatarChange = (e) => {
         if (e.target.files[0]) {

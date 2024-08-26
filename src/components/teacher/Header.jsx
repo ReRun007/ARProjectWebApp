@@ -86,11 +86,11 @@ function Header() {
                     <Button variant="outline-light" onClick={handleShow} className="me-3">
                         <FaUser />
                     </Button>
-                    <Navbar.Brand href="/home" className="fs-4">LearningSystem</Navbar.Brand>
+                    <Navbar.Brand href="/teacher/home" className="fs-4">LearningSystem</Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="ms-auto">
-                            <Nav.Link href="/home" className="mx-2"><FaHome /> หน้าหลัก</Nav.Link>
+                            <Nav.Link href="/teacher/home" className="mx-2"><FaHome /> หน้าหลัก</Nav.Link>
                             <NavDropdown title={<><FaChalkboardTeacher /> ห้องเรียน</>} id="classrooms-dropdown" className="mx-2">
                                 {classrooms.map(classroom => (
                                     <NavDropdown.Item key={classroom.id} href={`/classroom/${classroom.id}`}>

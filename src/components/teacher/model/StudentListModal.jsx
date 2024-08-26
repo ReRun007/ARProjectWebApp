@@ -20,6 +20,7 @@ const StudentListModal = ({ show, onHide, students }) => {
               <th>#</th>
               <th>ชื่อ</th>
               <th>นามสกุล</th>
+              <th>Username</th>
               <th>อีเมล</th>
               <th>วันที่ลงทะเบียน</th>
             </tr>
@@ -30,6 +31,7 @@ const StudentListModal = ({ show, onHide, students }) => {
                 <td>{index + 1}</td>
                 <td>{student.FirstName}</td>
                 <td>{student.LastName}</td>
+                <td>{student.Username}</td>
                 <td>{student.Email}</td>
                 <td>{formatDate(student.enrollmentDate)}</td>
               </tr>

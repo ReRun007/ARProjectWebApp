@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -12,9 +12,38 @@ function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const { logIn } = useUserAuth();  
+    const { logIn, user } = useUserAuth();  
 
     let navigate = useNavigate();
+
+    useEffect(() => {
+        const checkAuthStatus = async () => {
+            if (user) {
+                const userType = await checkUserType(user.uid);
+                if (userType === 'teacher') {
+                    navigate("/teacher/home");
+                } else if (userType === 'student') {
+                    navigate("/student/home");
+                }
+            }
+        };
+        checkAuthStatus();
+    }, [user, navigate]);
+
+    const checkUserType = async (uid) => {
+        const teacherDocRef = doc(db, "Teachers", uid);
+        const studentDocRef = doc(db, "Students", uid);
+        
+        const teacherDocSnap = await getDoc(teacherDocRef);
+        const studentDocSnap = await getDoc(studentDocRef);
+
+        if (teacherDocSnap.exists()) {
+            return 'teacher';
+        } else if (studentDocSnap.exists()) {
+            return 'student';
+        }
+        return null;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -23,25 +52,17 @@ function Login() {
             const userCredential = await logIn(email, password);
             const user = userCredential.user;
             
-            // ตรวจสอบประเภทผู้ใช้จาก Firestore
-            const teacherDocRef = doc(db, "Teachers", user.uid);
-            const studentDocRef = doc(db, "Students", user.uid);
-            
-            const teacherDocSnap = await getDoc(teacherDocRef);
-            const studentDocSnap = await getDoc(studentDocRef);
+            const userType = await checkUserType(user.uid);
 
-            if (teacherDocSnap.exists()) {
-                // ผู้ใช้เป็นครู
+            if (userType === 'teacher') {
                 sessionStorage.setItem('userType', 'teacher');
                 sessionStorage.setItem('teacherId', user.uid);
-                navigate("/teacher/home");
-            } else if (studentDocSnap.exists()) {
-                // ผู้ใช้เป็นนักเรียน
+                navigate("/../teacher/Home.jsx");
+            } else if (userType === 'student') {
                 sessionStorage.setItem('userType', 'student');
                 sessionStorage.setItem('studentId', user.uid);
-                navigate("/student/home");
+                navigate("../student/Home.jsx");
             } else {
-                // ไม่พบข้อมูลผู้ใช้
                 throw new Error("User data not found");
             }
         } catch (err) {

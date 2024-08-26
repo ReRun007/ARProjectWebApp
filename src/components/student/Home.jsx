@@ -6,7 +6,7 @@ import { collection, query, where, getDocs, addDoc, orderBy, limit } from 'fireb
 import Header from './Header';
 import { FaBook, FaClipboardList, FaCalendarAlt, FaPlus, FaClock } from 'react-icons/fa';
 
-import EmptyClassroomState from './EmptyClassroomState';
+import EmptyClassroomState from './model/EmptyClassroomState';
 
 function StudentHome() {
     const [courses, setCourses] = useState([]);

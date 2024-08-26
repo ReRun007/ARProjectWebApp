@@ -9,6 +9,7 @@ import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Table } f
 import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey } from 'react-icons/fa';
 
 import StudentListModal from './model/StudentListModal';
+import ShowClassCode from './model/ShowClassCode';
 
 
 function ClassroomDetails() {
@@ -148,20 +149,11 @@ function ClassroomDetails() {
                 </Row>
             </Container>
 
-            <Modal show={showClassCode} onHide={() => setShowClassCode(false)} centered>
-                <Modal.Header closeButton>
-                    <Modal.Title>รหัสห้องเรียน</Modal.Title>
-                </Modal.Header>
-                <Modal.Body className="text-center">
-                    <h2 className="display-4">{classroom.ClassId}</h2>
-                    <p className="text-muted">ใช้รหัสนี้เพื่อเชิญนักเรียนเข้าร่วมห้องเรียน</p>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowClassCode(false)}>
-                        ปิด
-                    </Button>
-                </Modal.Footer>
-            </Modal>
+            <ShowClassCode 
+                show={showClassCode} 
+                onHide={() => setShowClassCode(false)} 
+                classId={classroom.ClassId}
+            />
 
             <StudentListModal
                 show={showStudents}
