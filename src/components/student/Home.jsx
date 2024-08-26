@@ -9,7 +9,7 @@ import { FaBook, FaClipboardList, FaCalendarAlt, FaPlus, FaClock } from 'react-i
 import EmptyClassroomState from './model/EmptyClassroomState';
 
 function StudentHome() {
-    const [courses, setCourses] = useState([]);
+    const [classrooms, setClassrooms] = useState([]);
     const [upcomingAssignments, setUpcomingAssignments] = useState([]);
     const { user } = useUserAuth();
     const [showJoinModal, setShowJoinModal] = useState(false);
@@ -22,7 +22,7 @@ function StudentHome() {
             if (user && user.uid) {
                 try {
                     setLoading(true);
-                    await Promise.all([fetchCourses(), fetchUpcomingAssignments()]);
+                    await Promise.all([fetchClassrooms(), fetchUpcomingAssignments()]);
                 } catch (error) {
                     console.error("Error fetching data:", error);
                 } finally {
@@ -34,8 +34,7 @@ function StudentHome() {
         fetchData();
     }, [user]);
 
-    const fetchCourses = async () => {
-
+    const fetchClassrooms = async () => {
         const enrollmentsQuery = query(
             collection(db, "ClassEnrollments"),
             where("studentId", "==", user.uid)
@@ -43,16 +42,16 @@ function StudentHome() {
         const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
         const classIds = enrollmentsSnapshot.docs.map(doc => doc.data().classId);
 
-        if (classIds.length > 0) {  // เพิ่มการตรวจสอบนี้
-            const coursesQuery = query(
+        if (classIds.length > 0) {
+            const classroomsQuery = query(
                 collection(db, "Classrooms"),
                 where("ClassId", "in", classIds)
             );
-            const coursesSnapshot = await getDocs(coursesQuery);
-            const coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setCourses(coursesData);
+            const classroomsSnapshot = await getDocs(classroomsQuery);
+            const classroomsData = classroomsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setClassrooms(classroomsData);
         } else {
-            setCourses([]);  // ตั้งค่าเป็นอาร์เรย์ว่างถ้าไม่มี classIds
+            setClassrooms([]);
         }
     };
 
@@ -102,7 +101,7 @@ function StudentHome() {
 
             setShowJoinModal(false);
             setClassCode('');
-            await fetchCourses();
+            await fetchClassrooms();
         } catch (error) {
             console.error("Error joining class:", error);
             setJoinError('เกิดข้อผิดพลาดในการเข้าร่วมชั้นเรียน');
@@ -136,17 +135,17 @@ function StudentHome() {
                                 </Button>
                             </Card.Header>
                             <Card.Body>
-                                {courses.length > 0 ? (
+                                {classrooms.length > 0 ? (
                                     <Row xs={1} md={2} className="g-4">
-                                        {courses.map((course) => (
-                                            <Col key={course.id}>
+                                        {classrooms.map((classroom) => (
+                                            <Col key={classroom.id}>
                                                 <Card className="h-100 shadow-sm">
                                                     <Card.Body>
-                                                        <Card.Title>{course.ClassName}</Card.Title>
-                                                        <Card.Text>{course.ClassDescription}</Card.Text>
+                                                        <Card.Title>{classroom.ClassName}</Card.Title>
+                                                        <Card.Text>{classroom.ClassDescription}</Card.Text>
                                                     </Card.Body>
                                                     <Card.Footer>
-                                                        <Button variant="outline-primary" href={`/student/course/${course.id}`}>
+                                                        <Button variant="outline-primary" href={`/student/classroom/${classroom.id}`}>
                                                             เข้าสู่ห้องเรียน
                                                         </Button>
                                                     </Card.Footer>

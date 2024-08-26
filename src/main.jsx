@@ -11,6 +11,7 @@ import StudentHeader from './components/student/Header.jsx';
 import ClassroomDetails from './components/teacher/ClassroomDetails.jsx';
 import LessonManagement from './components/teacher/LessonManagement.jsx';
 import ClassroomPost from './components/teacher/ClassroomPost.jsx';
+import StudentClassroomDetails from './components/student/StudentClassroomDetails.jsx';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -38,6 +39,10 @@ const router = createBrowserRouter([
   {
     path: "/student/home",
     element: <ProtectedRoute><SutdentHome /></ProtectedRoute>,
+  },
+  {
+    path: "/student/classroom/:classId",
+    element: <StudentClassroomDetails />
   },
   {
     path: "/header",
