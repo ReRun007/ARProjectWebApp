@@ -9,6 +9,8 @@ import ProtectedRoute from './auth/ProtectedRoute.jsx';
 import TeacherHeader from './components/teacher/Header.jsx';
 import StudentHeader from './components/student/Header.jsx';
 import ClassroomDetails from './components/teacher/ClassroomDetails.jsx';
+import LessonManagement from './components/teacher/LessonManagement.jsx';
+import ClassroomPost from './components/teacher/ClassroomPost.jsx';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
 
@@ -30,7 +32,7 @@ const router = createBrowserRouter([
     element: <Register />,
   },
   {
-    path: "//teacher/home",
+    path: "/teacher/home",
     element: <ProtectedRoute><TeacherHome /></ProtectedRoute>,
   },
   {
@@ -46,9 +48,17 @@ const router = createBrowserRouter([
     element: <StudentHeader />,
   },
   {
-    path: "/classroom/:classId",  
+    path: "/teacher/classroom/:classId",  
     element: <ProtectedRoute><ClassroomDetails /></ProtectedRoute>
+  },  
+  {
+    path:"/teacher/classroom/:classId/lessons",
+    element:<LessonManagement />
+  },{
+    path:"/teacher/create-post",
+    element: <ClassroomPost />
   }
+
 ]);
 
 createRoot(document.getElementById('root')).render(

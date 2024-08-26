@@ -154,7 +154,7 @@ function Home() {
                                         <Button
                                             variant="outline-primary"
                                             className="mt-auto"
-                                            onClick={() => navigate(`/classroom/${classroom.ClassId}`)}
+                                            onClick={() => navigate(`/teacher/classroom/${classroom.ClassId}`)}
                                         >
                                             เข้าสู่ห้องเรียน
                                         </Button>
