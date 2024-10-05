@@ -92,7 +92,7 @@ function PostDisplay({ posts }) {
                         controls
                         style={mediaStyle}
                         className="rounded shadow-sm"
-                        onClick={() => handleMediaClick(post.fileUrl, 'video')}
+                        //onClick={() => handleMediaClick(post.fileUrl, 'video')}
                     >
                         <source src={post.fileUrl} type={`video/${fileType}`} />
                         Your browser does not support the video tag.

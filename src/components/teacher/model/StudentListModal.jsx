@@ -40,7 +40,7 @@ const StudentListModal = ({ show, onHide, students, onRemoveStudent }) => {
                 <th>Username</th>
                 <th>อีเมล</th>
                 <th>วันที่ลงทะเบียน</th>
-                <th>ไล่ออก</th>
+                <th>นำออก</th>
               </tr>
             </thead>
             <tbody>

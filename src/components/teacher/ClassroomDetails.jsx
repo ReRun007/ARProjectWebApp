@@ -6,21 +6,18 @@ import { db, storage } from '../../firebase';
 import { doc, getDoc, collection, query, where, getDocs, deleteDoc, addDoc, orderBy, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
-
-import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Form, Alert,Badge,Tabs, Tab  } from 'react-bootstrap';
+import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Form, Alert, Badge, Tabs, Tab } from 'react-bootstrap';
 import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey, FaFile, FaImage, FaPlusCircle } from 'react-icons/fa';
 
 import StudentListModal from './model/StudentListModal';
 import ShowClassCode from './model/ShowClassCode';
 import PostDisplay from './model/PostDisplay';
-
+import LessonDisplay from './model/LessonDisplay';
+import QuizDisplay from './model/QuizDisplay';
 
 import { useUserAuth } from '../../context/UserAuthContext';
 
-
-
 function ClassroomDetails() {
-
     const { classId } = useParams();
     const [classroom, setClassroom] = useState(null);
     const [students, setStudents] = useState([]);
@@ -32,10 +29,10 @@ function ClassroomDetails() {
     const [newPost, setNewPost] = useState('');
     const [file, setFile] = useState(null);
     const [previewUrl, setPreviewUrl] = useState(null);
+    const [lessonCount, setLessonCount] = useState(0);
+    const [quizCount, setQuizCount] = useState(0);
     const { user } = useUserAuth();
 
-
-    // ส่วนเพิ่มโพส
     const fetchPosts = async () => {
         try {
             const postsQuery = query(
@@ -45,7 +42,7 @@ function ClassroomDetails() {
             );
             const postsSnapshot = await getDocs(postsQuery);
             const postsData = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            console.log("Fetched posts:", postsData); // เพิ่ม log นี้
+            console.log("Fetched posts:", postsData);
             setPosts(postsData);
         } catch (error) {
             console.error("Error fetching posts: ", error);
@@ -56,7 +53,6 @@ function ClassroomDetails() {
     const handleFileChange = (e) => {
         if (e.target.files[0]) {
             setFile(e.target.files[0]);
-            // สร้าง URL สำหรับแสดงตัวอย่างรูปภาพ
             if (e.target.files[0].type.startsWith('image/')) {
                 const reader = new FileReader();
                 reader.onloadend = () => {
@@ -107,7 +103,6 @@ function ClassroomDetails() {
         }
     };
 
-    // คิวรี่ห้องเรียน
     const fetchClassroomData = async () => {
         try {
             setLoading(true);
@@ -117,11 +112,9 @@ function ClassroomDetails() {
             if (docSnap.exists()) {
                 setClassroom(docSnap.data());
 
-                // ดึงข้อมูลการลงทะเบียนจาก ClassEnrollments
                 const enrollmentsQuery = query(collection(db, 'ClassEnrollments'), where('classId', '==', classId));
                 const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
 
-                // สร้างอาร์เรย์ของ Promise สำหรับการดึงข้อมูลนักเรียนแต่ละคน
                 const studentPromises = enrollmentsSnapshot.docs.map(async (enrollDoc) => {
                     const studentRef = doc(db, 'Students', enrollDoc.data().studentId);
                     const studentSnap = await getDoc(studentRef);
@@ -135,10 +128,7 @@ function ClassroomDetails() {
                     return null;
                 });
 
-                // รอให้ทุก Promise เสร็จสิ้น
                 const studentList = (await Promise.all(studentPromises)).filter(student => student !== null);
-
-                // เรียงลำดับตามชื่อ
                 studentList.sort((a, b) => a.FirstName.localeCompare(b.FirstName));
 
                 setStudents(studentList);
@@ -154,7 +144,6 @@ function ClassroomDetails() {
 
     const handleRemoveStudent = async (studentId) => {
         try {
-            // ลบการลงทะเบียนของนักเรียนจาก ClassEnrollments
             const enrollmentQuery = query(
                 collection(db, 'ClassEnrollments'),
                 where('studentId', '==', studentId),
@@ -165,29 +154,38 @@ function ClassroomDetails() {
                 const enrollmentDoc = enrollmentSnapshot.docs[0];
                 await deleteDoc(enrollmentDoc.ref);
 
-                // อัพเดตรายชื่อนักเรียนในหน้าจอ
                 setStudents(prevStudents => prevStudents.filter(student => student.id !== studentId));
-
-                // แสดงข้อความแจ้งเตือนว่านำนักเรียนออกสำเร็จ
                 setAlertMessage({ type: 'success', text: 'นำนักเรียนออกจากห้องเรียนสำเร็จ' });
             } else {
                 throw new Error('ไม่พบข้อมูลการลงทะเบียนของนักเรียน');
             }
         } catch (error) {
             console.error("Error removing student: ", error);
-            // แสดงข้อความแจ้งเตือนว่าเกิดข้อผิดพลาด
             setAlertMessage({ type: 'danger', text: `เกิดข้อผิดพลาด: ${error.message}` });
         }
     };
 
-    function LoadingScreen() {
-        return (
-            <Container className="d-flex flex-column justify-content-center align-items-center" style={{ height: '100vh' }}>
-                <Spinner animation="border" variant="primary" style={{ width: '3rem', height: '3rem' }} />
-                <h4 className="mt-3">กำลังโหลดข้อมูล...</h4>
-            </Container>
-        );
-    }
+    const checkLessons = async () => {
+        try {
+            const q = query(collection(db, "Lessons"), where("classId", "==", classId));
+            const querySnapshot = await getDocs(q);
+            setLessonCount(querySnapshot.size);
+        } catch (error) {
+            console.error("Error checking lessons:", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการตรวจสอบบทเรียน' });
+        }
+    };
+
+    const checkQuizzes = async () => {
+        try {
+            const q = query(collection(db, "Quizzes"), where("classId", "==", classId));
+            const querySnapshot = await getDocs(q);
+            setQuizCount(querySnapshot.size);
+        } catch (error) {
+            console.error("Error checking quizzes:", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการตรวจสอบแบบทดสอบ' });
+        }
+    };
 
     useEffect(() => {
         const loadData = async () => {
@@ -196,6 +194,8 @@ function ClassroomDetails() {
                     setLoading(true);
                     await fetchClassroomData();
                     await fetchPosts();
+                    await checkLessons();
+                    await checkQuizzes();
                 } catch (error) {
                     console.error("Error loading data: ", error);
                     setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการโหลดข้อมูล กรุณารีเฟรชหน้าเว็บ' });
@@ -211,7 +211,12 @@ function ClassroomDetails() {
     }, [classId]);
 
     if (loading) {
-        return <LoadingScreen />; // ใช้คอมโพเนนต์ LoadingScreen ที่สร้างใหม่
+        return (
+            <Container className="d-flex flex-column justify-content-center align-items-center" style={{ height: '100vh' }}>
+                <Spinner animation="border" variant="primary" style={{ width: '3rem', height: '3rem' }} />
+                <h4 className="mt-3">กำลังโหลดข้อมูล...</h4>
+            </Container>
+        );
     }
 
     if (!classroom) {
@@ -276,28 +281,10 @@ function ClassroomDetails() {
                                         <PostDisplay posts={posts} />
                                     </Tab>
                                     <Tab eventKey="lessons" title="บทเรียน">
-                                        <Card className="shadow-sm mb-4">
-                                            <Card.Body className="text-center py-5">
-                                                <FaBook className="mb-3 text-primary" size={50} />
-                                                <Card.Title>ยังไม่มีบทเรียนในห้องเรียนนี้</Card.Title>
-                                                <Card.Text>เริ่มสร้างบทเรียนแรกของคุณเพื่อแบ่งปันความรู้กับนักเรียน</Card.Text>
-                                                <Button variant="primary" className="mt-3">
-                                                    <FaPlusCircle className="me-2" /> สร้างบทเรียนใหม่
-                                                </Button>
-                                            </Card.Body>
-                                        </Card>
+                                        <LessonDisplay classId={classId} />
                                     </Tab>
                                     <Tab eventKey="quizzes" title="แบบทดสอบ">
-                                        <Card className="shadow-sm mb-4">
-                                            <Card.Body className="text-center py-5">
-                                                <FaClipboardList className="mb-3 text-primary" size={50} />
-                                                <Card.Title>ยังไม่มีแบบทดสอบในห้องเรียนนี้</Card.Title>
-                                                <Card.Text>สร้างแบบทดสอบเพื่อวัดความเข้าใจของนักเรียน</Card.Text>
-                                                <Button variant="primary" className="mt-3">
-                                                    <FaPlusCircle className="me-2" /> สร้างแบบทดสอบใหม่
-                                                </Button>
-                                            </Card.Body>
-                                        </Card>
+                                        <QuizDisplay classId={classId} />
                                     </Tab>
                                 </Tabs>
                             </Col>
@@ -310,12 +297,6 @@ function ClassroomDetails() {
                                             <ListGroup.Item action onClick={() => setShowStudents(true)} className="d-flex justify-content-between align-items-center">
                                                 <span><FaUsers className="me-2" /> จัดการรายชื่อนักเรียน</span>
                                                 <Badge bg="primary" pill>{students.length}</Badge>
-                                            </ListGroup.Item>
-                                            <ListGroup.Item action href="/teacher/classroom/:classId/lessons">
-                                                <FaBook className="me-2" /> จัดการบทเรียน
-                                            </ListGroup.Item>
-                                            <ListGroup.Item action href="#manage-quizzes">
-                                                <FaClipboardList className="me-2" /> จัดการแบบทดสอบ
                                             </ListGroup.Item>
                                             <ListGroup.Item action onClick={() => setShowClassCode(true)}>
                                                 <FaKey className="me-2" /> แสดงรหัสห้องเรียน
@@ -334,11 +315,11 @@ function ClassroomDetails() {
                                             </ListGroup.Item>
                                             <ListGroup.Item className="d-flex justify-content-between align-items-center">
                                                 <div><FaBook className="me-2" /> จำนวนบทเรียน</div>
-                                                <span>0 บท</span>
+                                                <span>{lessonCount} บท</span>
                                             </ListGroup.Item>
                                             <ListGroup.Item className="d-flex justify-content-between align-items-center">
                                                 <div><FaClipboardList className="me-2" /> จำนวนแบบทดสอบ</div>
-                                                <span>0 ชุด</span>
+                                                <span>{quizCount} ชุด</span>
                                             </ListGroup.Item>
                                         </ListGroup>
                                     </Card.Body>

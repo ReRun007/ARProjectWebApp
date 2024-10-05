@@ -1,19 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Container, Row, Col, Card, Button, Form, ListGroup, Modal, Image, Alert } from 'react-bootstrap';
-import { useParams } from 'react-router-dom';
-import { db, storage } from '../../firebase';
-import { collection, query, where, getDocs, addDoc, doc, deleteDoc, updateDoc, orderBy, writeBatch } from 'firebase/firestore';
+import { Card, Button, ListGroup, Spinner, Modal, Form, Image, Alert } from 'react-bootstrap';
+import { collection, query, where, getDocs,getDoc, addDoc, updateDoc, deleteDoc, doc, orderBy, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { FaPlus, FaEdit, FaTrash, FaArrowUp, FaArrowDown, FaFile, FaImage, FaVideo } from 'react-icons/fa';
-import ReactQuill from 'react-quill';
-import 'react-quill/dist/quill.snow.css';
-import Header from './Header';
+import { db, storage } from '../../../firebase';
+import { FaBook, FaPlusCircle, FaEdit, FaTrash, FaArrowUp, FaArrowDown, FaFile, FaImage, FaVideo } from 'react-icons/fa';
 
-function LessonManagement() {
-    const { classId } = useParams();
+const LessonDisplay = ({ classId }) => {
     const [lessons, setLessons] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [showModal, setShowModal] = useState(false);
-    const [modalMode, setModalMode] = useState('add');
     const [currentLesson, setCurrentLesson] = useState(null);
     const [formData, setFormData] = useState({
         title: '',
@@ -24,7 +19,6 @@ function LessonManagement() {
         fileUrl: '',
         fileType: ''
     });
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
     const fetchLessons = useCallback(async () => {
@@ -47,11 +41,11 @@ function LessonManagement() {
     }, [fetchLessons]);
 
     const handleShowModal = (mode, lesson = null) => {
-        setModalMode(mode);
-        setCurrentLesson(lesson);
         if (mode === 'edit' && lesson) {
+            setCurrentLesson(lesson);
             setFormData({ ...lesson, file: null });
         } else {
+            setCurrentLesson(null);
             setFormData({ title: '', description: '', content: '', order: lessons.length, file: null, fileUrl: '', fileType: '' });
         }
         setShowModal(true);
@@ -66,10 +60,6 @@ function LessonManagement() {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleContentChange = (content) => {
-        setFormData(prev => ({ ...prev, content }));
     };
 
     const handleFileChange = (e) => {
@@ -105,10 +95,10 @@ function LessonManagement() {
                 fileType: fileType
             };
 
-            if (modalMode === 'add') {
-                await addDoc(collection(db, "Lessons"), lessonData);
-            } else if (modalMode === 'edit' && currentLesson) {
+            if (currentLesson) {
                 await updateDoc(doc(db, "Lessons", currentLesson.id), lessonData);
+            } else {
+                await addDoc(collection(db, "Lessons"), lessonData);
             }
 
             handleCloseModal();
@@ -126,19 +116,35 @@ function LessonManagement() {
             setLoading(true);
             setError(null);
             try {
-                const lessonDoc = await getDoc(doc(db, "Lessons", lessonId));
-                const lessonData = lessonDoc.data();
+                const lessonRef = doc(db, "Lessons", lessonId);
+                const lessonDoc = await getDoc(lessonRef);
                 
-                if (lessonData.fileUrl) {
-                    const fileRef = ref(storage, lessonData.fileUrl);
-                    await deleteObject(fileRef);
+                if (!lessonDoc.exists()) {
+                    throw new Error("Lesson not found");
                 }
                 
-                await deleteDoc(doc(db, "Lessons", lessonId));
-                fetchLessons();
+                const lessonData = lessonDoc.data();
+                
+                // ลบไฟล์ (ถ้ามี)
+                if (lessonData.fileUrl) {
+                    try {
+                        const fileRef = ref(storage, lessonData.fileUrl);
+                        await deleteObject(fileRef);
+                        console.log("File deleted successfully");
+                    } catch (fileError) {
+                        console.error("Error deleting file:", fileError);
+                        // ไม่ throw error ที่นี่ เพื่อให้สามารถลบเอกสารในฐานข้อมูลต่อไปได้
+                    }
+                }
+                
+                // ลบเอกสารจากฐานข้อมูล
+                await deleteDoc(lessonRef);
+                console.log("Lesson document deleted successfully");
+                
+                fetchLessons(); // โหลดข้อมูลบทเรียนใหม่
             } catch (err) {
                 console.error("Error deleting lesson:", err);
-                setError("Failed to delete lesson. Please try again.");
+                setError(`Failed to delete lesson: ${err.message}`);
             } finally {
                 setLoading(false);
             }
@@ -190,68 +196,68 @@ function LessonManagement() {
         return null;
     };
 
-    const modules = {
-        toolbar: [
-            [{ 'header': [1, 2, false] }],
-            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}],
-            ['link', 'image'],
-            ['clean']
-        ],
-    };
-
-    const formats = [
-        'header',
-        'bold', 'italic', 'underline', 'strike', 'blockquote',
-        'list', 'bullet', 'indent',
-        'link', 'image'
-    ];
-
     if (loading) {
-        return <Container className="py-5"><Alert variant="info">กำลังโหลด...</Alert></Container>;
+        return (
+            <div className="text-center py-5">
+                <Spinner animation="border" role="status">
+                    <span className="visually-hidden">กำลังโหลด...</span>
+                </Spinner>
+            </div>
+        );
     }
 
     return (
         <>
-            <Header />
-            <Container className="py-5">
-                <h1 className="mb-4">จัดการบทเรียน</h1>
-                {error && <Alert variant="danger">{error}</Alert>}
-                <Button variant="primary" onClick={() => handleShowModal('add')} className="mb-3">
-                    <FaPlus /> เพิ่มบทเรียนใหม่
-                </Button>
-                <ListGroup>
-                    {lessons.map((lesson, index) => (
-                        <ListGroup.Item key={lesson.id} className="d-flex justify-content-between align-items-center">
-                            <div className="d-flex align-items-center">
-                                {renderFilePreview(lesson)}
-                                <div className="ms-3">
-                                    <h5>{lesson.title}</h5>
-                                    <p className="mb-0 text-muted">{lesson.description}</p>
-                                </div>
-                            </div>
-                            <div>
-                                <Button variant="outline-secondary" className="me-2" onClick={() => handleReorderLesson(lesson.id, 'up')} disabled={index === 0 || loading}>
-                                    <FaArrowUp />
-                                </Button>
-                                <Button variant="outline-secondary" className="me-2" onClick={() => handleReorderLesson(lesson.id, 'down')} disabled={index === lessons.length - 1 || loading}>
-                                    <FaArrowDown />
-                                </Button>
-                                <Button variant="outline-primary" className="me-2" onClick={() => handleShowModal('edit', lesson)} disabled={loading}>
-                                    <FaEdit />
-                                </Button>
-                                <Button variant="outline-danger" onClick={() => handleDeleteLesson(lesson.id)} disabled={loading}>
-                                    <FaTrash />
-                                </Button>
-                            </div>
-                        </ListGroup.Item>
-                    ))}
-                </ListGroup>
-            </Container>
+            <Card className="shadow-sm mb-4">
+                <Card.Body>
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                        <Card.Title>บทเรียนทั้งหมด</Card.Title>
+                        <Button variant="primary" onClick={() => handleShowModal('add')}>
+                            <FaPlusCircle className="me-2" /> เพิ่มบทเรียนใหม่
+                        </Button>
+                    </div>
+                    {error && <Alert variant="danger">{error}</Alert>}
+                    {lessons.length > 0 ? (
+                        <ListGroup variant="flush">
+                            {lessons.map((lesson, index) => (
+                                <ListGroup.Item key={lesson.id} className="d-flex justify-content-between align-items-center">
+                                    <div className="d-flex align-items-center">
+                                        {renderFilePreview(lesson)}
+                                        <div className="ms-3">
+                                            <strong>บทที่ {index + 1}: {lesson.title}</strong>
+                                            <div className="text-muted">{lesson.description}</div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <Button variant="outline-secondary" className="me-2" onClick={() => handleReorderLesson(lesson.id, 'up')} disabled={index === 0 || loading}>
+                                            <FaArrowUp />
+                                        </Button>
+                                        <Button variant="outline-secondary" className="me-2" onClick={() => handleReorderLesson(lesson.id, 'down')} disabled={index === lessons.length - 1 || loading}>
+                                            <FaArrowDown />
+                                        </Button>
+                                        <Button variant="outline-primary" className="me-2" onClick={() => handleShowModal('edit', lesson)} disabled={loading}>
+                                            <FaEdit />
+                                        </Button>
+                                        <Button variant="outline-danger" onClick={() => handleDeleteLesson(lesson.id)} disabled={loading}>
+                                            <FaTrash />
+                                        </Button>
+                                    </div>
+                                </ListGroup.Item>
+                            ))}
+                        </ListGroup>
+                    ) : (
+                        <div className="text-center py-5">
+                            <FaBook className="mb-3 text-primary" size={50} />
+                            <div className="mb-2">ยังไม่มีบทเรียนในห้องเรียนนี้</div>
+                            <div>เริ่มสร้างบทเรียนแรกของคุณเพื่อแบ่งปันความรู้กับนักเรียน</div>
+                        </div>
+                    )}
+                </Card.Body>
+            </Card>
 
             <Modal show={showModal} onHide={handleCloseModal} size="lg">
                 <Modal.Header closeButton>
-                    <Modal.Title>{modalMode === 'add' ? 'เพิ่มบทเรียนใหม่' : 'แก้ไขบทเรียน'}</Modal.Title>
+                    <Modal.Title>{currentLesson ? 'แก้ไขบทเรียน' : 'เพิ่มบทเรียนใหม่'}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form onSubmit={handleSubmit}>
@@ -277,12 +283,12 @@ function LessonManagement() {
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>เนื้อหาบทเรียน</Form.Label>
-                            <ReactQuill 
-                                theme="snow"
+                            <Form.Control
+                                as="textarea"
+                                rows={5}
+                                name="content"
                                 value={formData.content}
-                                onChange={handleContentChange}
-                                modules={modules}
-                                formats={formats}
+                                onChange={handleInputChange}
                             />
                         </Form.Group>
                         <Form.Group className="mb-3">
@@ -300,13 +306,13 @@ function LessonManagement() {
                             </div>
                         )}
                         <Button variant="primary" type="submit" disabled={loading}>
-                            {loading ? 'กำลังบันทึก...' : (modalMode === 'add' ? 'เพิ่มบทเรียน' : 'บันทึกการแก้ไข')}
+                            {loading ? 'กำลังบันทึก...' : (currentLesson ? 'บันทึกการแก้ไข' : 'เพิ่มบทเรียน')}
                         </Button>
                     </Form>
                 </Modal.Body>
             </Modal>
         </>
     );
-}
+};
 
-export default LessonManagement;
+export default LessonDisplay;

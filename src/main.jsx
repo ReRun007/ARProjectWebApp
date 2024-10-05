@@ -1,5 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
+import './index.css'
+import { UserAuthContextProvider } from './context/UserAuthContext.jsx'
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+
+
 import App from './App.jsx';
 import Login from './components/auth/Login.jsx';
 import Register from './components/auth/Register.jsx';
@@ -12,12 +19,12 @@ import ClassroomDetails from './components/teacher/ClassroomDetails.jsx';
 import LessonManagement from './components/teacher/LessonManagement.jsx';
 import ClassroomPost from './components/teacher/ClassroomPost.jsx';
 import StudentClassroomDetails from './components/student/StudentClassroomDetails.jsx';
+import QuizEditor from './components/teacher/model/QuizEditor.jsx';
+import QuizTaker from './components/teacher/model/QuizTaker.jsx';
+import QuizManagement from './components/teacher/QuizManagement.jsx';
 
-import 'bootstrap/dist/css/bootstrap.min.css';
 
-import './index.css'
-import { UserAuthContextProvider } from './context/UserAuthContext.jsx'
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+
 
 const router = createBrowserRouter([
   {
@@ -62,6 +69,15 @@ const router = createBrowserRouter([
   },{
     path:"/teacher/create-post",
     element: <ClassroomPost />
+  },{
+    path:"/teacher/classroom/:classId/quiz/:quizId",
+    element:<QuizEditor />
+  },{
+    path:"/teacher/classroom/:classId/quiz/:quizId/take",
+    element:<QuizTaker />
+  },{
+    path:"/teacher/classroom/:classId/quiz",
+    element:<QuizManagement />
   }
 
 ]);
