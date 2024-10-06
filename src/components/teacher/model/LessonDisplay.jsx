@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Button, ListGroup, Spinner, Modal, Form, Image, Alert } from 'react-bootstrap';
-import { collection, query, where, getDocs,getDoc, addDoc, updateDoc, deleteDoc, doc, orderBy, writeBatch } from 'firebase/firestore';
+import { collection, query, where, getDocs, getDoc, addDoc, updateDoc, deleteDoc, doc, orderBy, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../../firebase';
 import { FaBook, FaPlusCircle, FaEdit, FaTrash, FaArrowUp, FaArrowDown, FaFile, FaImage, FaVideo } from 'react-icons/fa';
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 const LessonDisplay = ({ classId }) => {
     const [lessons, setLessons] = useState([]);
@@ -60,6 +62,10 @@ const LessonDisplay = ({ classId }) => {
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleContentChange = (content) => {
+        setFormData(prev => ({ ...prev, content }));
     };
 
     const handleFileChange = (e) => {
@@ -206,6 +212,23 @@ const LessonDisplay = ({ classId }) => {
         );
     }
 
+    const modules = {
+        toolbar: [
+            [{ 'header': [1, 2, false] }],
+            ['bold', 'italic', 'underline', 'strike', 'blockquote'],
+            [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}],
+            ['link', 'image'],
+            ['clean']
+        ],
+    };
+
+    const formats = [
+        'header',
+        'bold', 'italic', 'underline', 'strike', 'blockquote',
+        'list', 'bullet', 'indent',
+        'link', 'image'
+    ];
+
     return (
         <>
             <Card className="shadow-sm mb-4">
@@ -283,12 +306,12 @@ const LessonDisplay = ({ classId }) => {
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>เนื้อหาบทเรียน</Form.Label>
-                            <Form.Control
-                                as="textarea"
-                                rows={5}
-                                name="content"
+                            <ReactQuill 
+                                theme="snow"
                                 value={formData.content}
-                                onChange={handleInputChange}
+                                onChange={handleContentChange}
+                                modules={modules}
+                                formats={formats}
                             />
                         </Form.Group>
                         <Form.Group className="mb-3">

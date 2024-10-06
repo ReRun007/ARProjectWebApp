@@ -5,7 +5,8 @@ import { db } from '../../firebase';
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import Header from './Header';
 import StudentPostDisplay from './model/StudentPostDisplay';
-import { FaBook, FaClipboardList } from 'react-icons/fa';
+import StudentLessonDisplay from './model/StudentLessonDisplay';
+import StudentQuizDisplay from './model/StudentQuizDisplay';
 
 function StudentClassroomDetails() {
     const { classId } = useParams();
@@ -36,13 +37,13 @@ function StudentClassroomDetails() {
                 // Fetch lessons
                 const lessonsQuery = query(
                     collection(db, 'Lessons'),
-                    where('sj_id', '==', classId),
-                    orderBy('ls_number')
+                    where('classId', '==', classId),
+                    orderBy('order')
                 );
                 const lessonsSnapshot = await getDocs(lessonsQuery);
                 setLessons(lessonsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
-                // Fetch quizzes (assuming you have a Quizzes collection)
+                // Fetch quizzes
                 const quizzesQuery = query(
                     collection(db, 'Quizzes'),
                     where('classId', '==', classId)
@@ -89,54 +90,10 @@ function StudentClassroomDetails() {
                                 <StudentPostDisplay posts={posts} classId={classId} />
                             </Tab>
                             <Tab eventKey="lessons" title="บทเรียน">
-                                <Card className="shadow-sm">
-                                    <Card.Body>
-                                        {lessons.length > 0 ? (
-                                            lessons.map((lesson) => (
-                                                <Card key={lesson.id} className="mb-3">
-                                                    <Card.Body>
-                                                        <Card.Title>
-                                                            <FaBook className="me-2" />
-                                                            บทที่ {lesson.ls_number}: {lesson.ls_name}
-                                                        </Card.Title>
-                                                        <Card.Text>{lesson.lsd_description}</Card.Text>
-                                                        {lesson.lsd_file && (
-                                                            <a href={lesson.lsd_file} target="_blank" rel="noopener noreferrer" className="btn btn-outline-primary">
-                                                                ดูเอกสารประกอบการเรียน
-                                                            </a>
-                                                        )}
-                                                    </Card.Body>
-                                                </Card>
-                                            ))
-                                        ) : (
-                                            <p className="text-center text-muted">ยังไม่มีบทเรียนในห้องเรียนนี้</p>
-                                        )}
-                                    </Card.Body>
-                                </Card>
+                                <StudentLessonDisplay lessons={lessons} />
                             </Tab>
                             <Tab eventKey="quizzes" title="แบบทดสอบ">
-                                <Card className="shadow-sm">
-                                    <Card.Body>
-                                        {quizzes.length > 0 ? (
-                                            quizzes.map((quiz) => (
-                                                <Card key={quiz.id} className="mb-3">
-                                                    <Card.Body>
-                                                        <Card.Title>
-                                                            <FaClipboardList className="me-2" />
-                                                            {quiz.title}
-                                                        </Card.Title>
-                                                        <Card.Text>{quiz.description}</Card.Text>
-                                                        <a href={`/student/quiz/${quiz.id}`} className="btn btn-primary">
-                                                            เริ่มทำแบบทดสอบ
-                                                        </a>
-                                                    </Card.Body>
-                                                </Card>
-                                            ))
-                                        ) : (
-                                            <p className="text-center text-muted">ยังไม่มีแบบทดสอบในห้องเรียนนี้</p>
-                                        )}
-                                    </Card.Body>
-                                </Card>
+                                <StudentQuizDisplay quizzes={quizzes || []} />
                             </Tab>
                         </Tabs>
                     </Col>

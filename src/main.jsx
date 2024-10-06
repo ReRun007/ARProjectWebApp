@@ -22,6 +22,8 @@ import StudentClassroomDetails from './components/student/StudentClassroomDetail
 import QuizEditor from './components/teacher/model/QuizEditor.jsx';
 import QuizTaker from './components/teacher/model/QuizTaker.jsx';
 import QuizManagement from './components/teacher/QuizManagement.jsx';
+import StudentQuizTaker from './components/student/model/StudentQuizTaker.jsx';
+
 
 
 
@@ -78,6 +80,9 @@ const router = createBrowserRouter([
   },{
     path:"/teacher/classroom/:classId/quiz",
     element:<QuizManagement />
+  },{
+    path: "/student/classroom/:classId/quiz/:quizId",
+    element: <ProtectedRoute><StudentQuizTaker /></ProtectedRoute>,
   }
 
 ]);

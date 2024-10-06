@@ -1,0 +1,124 @@
+ฐานข้อมูลตอนนี้
+Firebase Database Structure:
+
+- Classrooms
+  - ClassId: string
+  - ClassName: string
+  - ClassDescription: string
+  - TeachersID: string (reference to /Teachers/{uid})
+
+- Teachers
+  - uid: string
+  - FirstName: string
+  - LastName: string
+  - Username: string
+  - Email: string
+  - URLImage: string (path to profile image in Firebase Storage)
+
+- Students
+  - uid: string
+  - FirstName: string
+  - LastName: string
+  - Username: string
+  - Email: string
+  - URLImage: string (path to profile image in Firebase Storage)
+
+- ClassEnrollments
+  - classId: string (reference to Classrooms)
+  - studentId: string (reference to Students)
+  - enrollmentDate: timestamp
+
+- Posts
+  - id: string
+  - classId: string (reference to Classrooms)
+  - content: string
+  - createdAt: timestamp
+  - createdBy: string (reference to Teachers or Students)
+  - fileUrl: string (optional)
+  - fileName: string (optional)
+
+- Comments
+  - id: string
+  - postId: string (reference to Posts)
+  - classId: string (reference to Classrooms)
+  - content: string
+  - createdAt: timestamp
+  - createdBy: string (reference to Students or Teachers)
+
+- Lessons
+  - id: string
+  - classId: string (reference to Classrooms)
+  - title: string
+  - description: string
+  - content: string
+  - order: number
+  - fileUrl: string (optional)
+  - fileType: string (optional)
+
+- Quizzes
+  - id: string
+  - classId: string (reference to Classrooms)
+  - title: string
+  - description: string
+  - questions: array of objects
+    - text: string
+    - image: string (optional)
+    - options: array of objects
+      - text: string
+      - image: string (optional)
+    - correctAnswer: number
+
+- QuizResults
+  - id: string (format: {quizId}_{userId})
+  - quizId: string (reference to Quizzes)
+  - userId: string (reference to Students)
+  - score: number
+  - totalQuestions: number
+  - completedAt: timestamp
+
+- Assignments (implied, not directly shown in provided code)
+  - id: string
+  - title: string
+  - dueDate: timestamp
+  - classId: string (reference to Classrooms)
+
+
+==========================================================================
+  path ไฟล์เบื้องต้น
+ARPROJECT/
+└── src/
+    ├── auth/
+    ├── components/
+    │   ├── auth/
+    │   │   ├── Login.jsx
+    │   │   └── Register.jsx
+    │   ├── student/
+    │   │   ├── model/
+    │   │   │   ├── EmptyClassroomState.jsx
+    │   │   │   └── StudentPostDisplay.jsx
+    │   │   ├── Header.jsx
+    │   │   ├── Home.jsx
+    │   │   └── StudentClassroomDetails.jsx
+    │   └── teacher/
+    │       ├── model/
+    │       │   ├── EditQuestionModal.jsx
+    │       │   ├── LessonDisplay.jsx
+    │       │   ├── PostDisplay.jsx
+    │       │   ├── QuizDisplay.jsx
+    │       │   ├── QuizEditor.jsx
+    │       │   ├── QuizTaker.jsx
+    │       │   ├── ShowClassCode.jsx
+    │       │   └── StudentListModal.jsx
+    │       ├── ClassroomDetails.jsx
+    │       ├── ClassroomPost.jsx
+    │       ├── Header.jsx
+    │       ├── Home.jsx
+    │       ├── LessonManagement.jsx
+    │       └── QuizManagement.jsx
+    ├── context/
+    │   └── UserAuthContext.jsx
+    ├── App.css
+    ├── App.jsx
+    ├── firebase.js
+    ├── index.css
+    └── main.jsx

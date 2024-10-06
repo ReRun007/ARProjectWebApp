@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Modal, Button, Form, ListGroup, Spinner } from 'react-bootstrap';
-import { FaUser, FaClock, FaPaperclip, FaImage, FaDownload, FaComment } from 'react-icons/fa';
+import { Card, Badge, Modal, Button, Form, ListGroup, Spinner, Image } from 'react-bootstrap';
+import { FaUser, FaClock, FaPaperclip, FaImage, FaDownload, FaComment, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { db, storage } from '../../../firebase';
 import { doc, getDoc, collection, addDoc, query, where, orderBy, getDocs, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
@@ -17,12 +17,13 @@ function StudentPostDisplay({ posts, classId }) {
     const [loadingComments, setLoadingComments] = useState(true);
     const [commentUsers, setCommentUsers] = useState({});
     const { user } = useUserAuth();
+    const [expandedComments, setExpandedComments] = useState({});
 
     useEffect(() => {
         fetchUsersData();
         const unsubscribe = subscribeToComments();
         return () => unsubscribe();
-    }, [posts]);
+    }, [posts, classId]);
 
     const fetchUsersData = async () => {
         const userData = {};
@@ -55,7 +56,7 @@ function StudentPostDisplay({ posts, classId }) {
         const commentsQuery = query(
             collection(db, 'Comments'),
             where('classId', '==', classId),
-            orderBy('createdAt', 'asc')
+            orderBy('createdAt', 'desc')
         );
 
         return onSnapshot(commentsQuery, async (snapshot) => {
@@ -94,7 +95,16 @@ function StudentPostDisplay({ posts, classId }) {
         try {
             const userDoc = await getDoc(doc(db, 'Students', userId));
             if (userDoc.exists()) {
-                return { id: userId, ...userDoc.data() };
+                const userData = userDoc.data();
+                let profileImageUrl = null;
+                if (userData.URLImage) {
+                    try {
+                        profileImageUrl = await getDownloadURL(ref(storage, userData.URLImage));
+                    } catch (error) {
+                        console.error("Error fetching profile image:", error);
+                    }
+                }
+                return { id: userId, ...userData, profileImage: profileImageUrl };
             }
         } catch (error) {
             console.error("Error fetching user data:", error);
@@ -180,11 +190,11 @@ function StudentPostDisplay({ posts, classId }) {
         setShowCommentModal(true);
     };
 
-    const handleAddComment = async () => {
+    const handleAddComment = async (postId) => {
         if (comment.trim() === '') return;
 
         const newComment = {
-            postId: selectedPost.id,
+            postId: postId,
             content: comment,
             createdBy: user.uid,
             createdAt: serverTimestamp(),
@@ -197,6 +207,71 @@ function StudentPostDisplay({ posts, classId }) {
         } catch (error) {
             console.error("Error adding comment: ", error);
         }
+    };
+
+    const toggleCommentExpansion = (postId) => {
+        setExpandedComments(prev => ({
+            ...prev,
+            [postId]: !prev[postId]
+        }));
+    };
+
+    const renderComments = (postId, isModal = false) => {
+        const postComments = comments[postId] || [];
+        const isExpanded = expandedComments[postId] || isModal;
+        const displayComments = isExpanded ? postComments : postComments.slice(0, 3);
+
+        return (
+            <>
+                <ListGroup variant="flush" className="mt-3">
+                    {displayComments.map((comment) => (
+                        <ListGroup.Item key={comment.id}>
+                            <div className="d-flex">
+                                <Image
+                                    src={commentUsers[comment.createdBy]?.profileImage || '/default-avatar.png'}
+                                    roundedCircle
+                                    width="32"
+                                    height="32"
+                                    className="me-2"
+                                />
+                                <div>
+                                    <div className="fw-bold">{commentUsers[comment.createdBy]?.FirstName || 'ผู้ใช้'}</div>
+                                    <p>{comment.content}</p>
+                                    <small className="text-muted">{formatDate(comment.createdAt?.toDate())}</small>
+                                </div>
+                            </div>
+                        </ListGroup.Item>
+                    ))}
+                </ListGroup>
+                {!isModal && postComments.length > 3 && (
+                    <Button
+                        variant="link"
+                        className="w-100 text-center mt-2"
+                        onClick={() => toggleCommentExpansion(postId)}
+                    >
+                        {isExpanded ? (
+                            <>ซ่อนความคิดเห็น <FaChevronUp /></>
+                        ) : (
+                            <>ดูความคิดเห็นทั้งหมด ({postComments.length}) <FaChevronDown /></>
+                        )}
+                    </Button>
+                )}
+                <Form className="mt-3">
+                    <Form.Group>
+                        <Form.Control
+                            as="textarea"
+                            rows={1}
+                            placeholder="เขียนความคิดเห็นของคุณ..."
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                        />
+                    </Form.Group>
+                    <Button variant="primary" className="mt-2" onClick={() => handleAddComment(postId)}>
+                        ส่งความคิดเห็น
+                    </Button>
+                </Form>
+            </>
+        );
     };
 
     return (
@@ -240,6 +315,7 @@ function StudentPostDisplay({ posts, classId }) {
                                     <FaComment className="me-1" /> ความคิดเห็น ({comments[post.id]?.length || 0})
                                 </Button>
                             </div>
+                            {renderComments(post.id)}
                         </Card.Body>
                     </Card>
                 ))
@@ -273,9 +349,16 @@ function StudentPostDisplay({ posts, classId }) {
                 </Modal.Body>
             </Modal>
 
-            <Modal show={showCommentModal} onHide={() => setShowCommentModal(false)}>
+            <Modal
+                show={showCommentModal}
+                onHide={() => {
+                    setShowCommentModal(false);
+                    setComment('');
+                }}
+                size="lg"
+            >
                 <Modal.Header closeButton>
-                    <Modal.Title>ความคิดเห็น</Modal.Title>
+                    <Modal.Title>ความคิดเห็นทั้งหมด</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     {loadingComments ? (
@@ -284,35 +367,13 @@ function StudentPostDisplay({ posts, classId }) {
                                 <span className="visually-hidden">กำลังโหลด...</span>
                             </Spinner>
                         </div>
-                    ) : comments[selectedPost?.id]?.length > 0 ? (
-                        <ListGroup variant="flush">
-                            {comments[selectedPost?.id].map((comment) => (
-                                <ListGroup.Item key={comment.id}>
-                                    <div className="d-flex justify-content-between">
-                                        <strong>{commentUsers[comment.createdBy]?.FirstName || 'ผู้ใช้'}</strong>
-                                        <small>{formatDate(comment.createdAt?.toDate())}</small>
-                                    </div>
-                                    <p>{comment.content}</p>
-                                </ListGroup.Item>
-                            ))}
-                        </ListGroup>
+                    ) : selectedPost ? (
+                        <>
+                            {renderComments(selectedPost.id, true)}
+                        </>
                     ) : (
-                        <p className="text-center text-muted">ยังไม่มีความคิดเห็นในโพสต์นี้</p>
+                        <p>ไม่พบความคิดเห็น</p>
                     )}
-                    <Form className="mt-3">
-                        <Form.Group>
-                            <Form.Control
-                                as="textarea"
-                                rows={3}
-                                value={comment}
-                                onChange={(e) => setComment(e.target.value)}
-                                placeholder="เขียนความคิดเห็นของคุณ..."
-                            />
-                        </Form.Group>
-                        <Button variant="primary" className="mt-2" onClick={handleAddComment}>
-                            ส่งความคิดเห็น
-                        </Button>
-                    </Form>
                 </Modal.Body>
             </Modal>
         </>
