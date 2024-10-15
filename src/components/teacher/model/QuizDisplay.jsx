@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, ListGroup, Modal, Form, Alert,Image  } from 'react-bootstrap';
+import { Card, Button, ListGroup, Modal, Form, Alert, Image } from 'react-bootstrap';
 import { collection, query, where, getDocs, addDoc, deleteDoc, doc, updateDoc, orderBy, writeBatch } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { FaArrowUp, FaArrowDown, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaArrowUp, FaArrowDown, FaEdit, FaTrash, FaPlus, FaClipboardList } from 'react-icons/fa';
 import EditQuestionModal from './EditQuestionModal';
 
 function QuizDisplay({ classId }) {
@@ -15,6 +15,7 @@ function QuizDisplay({ classId }) {
     const [currentQuiz, setCurrentQuiz] = useState(null);
     const [showQuestionModal, setShowQuestionModal] = useState(false);
     const [currentQuestion, setCurrentQuestion] = useState(null);
+    const [quizTimeLimit, setQuizTimeLimit] = useState(0);
 
     useEffect(() => {
         fetchQuizzes();
@@ -28,7 +29,14 @@ function QuizDisplay({ classId }) {
                 orderBy("order", "asc")
             );
             const querySnapshot = await getDocs(q);
-            const quizData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const quizData = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                return {
+                    id: doc.id,
+                    ...data,
+                    timeLimit: data.timeLimit || 0 // เพิ่มบรรทัดนี้
+                };
+            });
             setQuizzes(quizData);
         } catch (error) {
             console.error("Error fetching quizzes: ", error);
@@ -44,11 +52,13 @@ function QuizDisplay({ classId }) {
                 description: quizDescription,
                 classId: classId,
                 createdAt: new Date(),
-                order: quizzes.length // กำหนด order เป็นลำดับสุดท้าย
+                order: quizzes.length,
+                timeLimit: quizTimeLimit // เพิ่มบรรทัดนี้
             });
             setShowModal(false);
             setQuizTitle('');
             setQuizDescription('');
+            setQuizTimeLimit(0); // รีเซ็ตค่าเวลา
             fetchQuizzes();
             setAlertMessage({ type: 'success', text: 'สร้างแบบทดสอบสำเร็จ' });
         } catch (error) {
@@ -73,7 +83,10 @@ function QuizDisplay({ classId }) {
     const handleEditQuiz = async (e) => {
         e.preventDefault();
         try {
-            await updateDoc(doc(db, "Quizzes", currentQuiz.id), currentQuiz);
+            await updateDoc(doc(db, "Quizzes", currentQuiz.id), {
+                ...currentQuiz,
+                timeLimit: quizTimeLimit // เพิ่มบรรทัดนี้
+            });
             setShowEditModal(false);
             fetchQuizzes();
             setAlertMessage({ type: 'success', text: 'แก้ไขแบบทดสอบสำเร็จ' });
@@ -82,6 +95,7 @@ function QuizDisplay({ classId }) {
             setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการแก้ไขแบบทดสอบ' });
         }
     };
+
     const handleAddQuestion = () => {
         setCurrentQuestion(null);
         setShowQuestionModal(true);
@@ -168,6 +182,21 @@ function QuizDisplay({ classId }) {
         }
     };
 
+    const EmptyQuizState = ({ onCreateQuiz }) => (
+        <Card className="text-center shadow-sm border-primary">
+            <Card.Body className="py-5">
+                <FaClipboardList size={64} className="mb-3 text-primary" />
+                <Card.Title className="mb-3">ยังไม่มีแบบทดสอบในห้องเรียนนี้</Card.Title>
+                <Card.Text>
+                    เริ่มสร้างแบบทดสอบแรกของคุณเพื่อประเมินความเข้าใจของนักเรียน
+                </Card.Text>
+                <Button variant="primary" onClick={onCreateQuiz}>
+                    <FaPlus className="me-2" /> สร้างแบบทดสอบใหม่
+                </Button>
+            </Card.Body>
+        </Card>
+    );
+
     return (
         <>
             <Card className="shadow-sm mb-4">
@@ -183,54 +212,58 @@ function QuizDisplay({ classId }) {
                             {alertMessage.text}
                         </Alert>
                     )}
-                    <ListGroup>
-                        {quizzes.map((quiz, index) => (
-                            <ListGroup.Item key={quiz.id} className="d-flex justify-content-between align-items-center">
-                                <div>
-                                    <h5>{quiz.title}</h5>
-                                    <p className="mb-0 text-muted">{quiz.description}</p>
-                                    <small>จำนวนคำถาม: {quiz.questions?.length || 0}</small>
-                                </div>
-                                <div>
-                                    <Button
-                                        variant="outline-secondary"
-                                        className="me-1"
-                                        onClick={() => handleReorderQuiz(quiz.id, 'up')}
-                                        disabled={index === 0}
-                                    >
-                                        <FaArrowUp />
-                                    </Button>
-                                    <Button
-                                        variant="outline-secondary"
-                                        className="me-1"
-                                        onClick={() => handleReorderQuiz(quiz.id, 'down')}
-                                        disabled={index === quizzes.length - 1}
-                                    >
-                                        <FaArrowDown />
-                                    </Button>
-                                    <Button
-                                        variant="outline-primary"
-                                        className="me-1"
-                                        onClick={() => {
-                                            setCurrentQuiz(quiz);
-                                            setShowEditModal(true);
-                                        }}
-                                    >
-                                        <FaEdit />
-                                    </Button>
-                                    <Button
-                                        variant="outline-danger"
-                                        onClick={() => handleDeleteQuiz(quiz.id)}
-                                    >
-                                        <FaTrash />
-                                    </Button>
-                                </div>
-                            </ListGroup.Item>
-                        ))}
-                    </ListGroup>
-                    {quizzes.length === 0 && (
-                        <p className="text-center text-muted mt-3">ยังไม่มีแบบทดสอบในห้องเรียนนี้</p>
+                    {quizzes.length > 0 ? (
+                        <ListGroup>
+                            {quizzes.map((quiz, index) => (
+                                <ListGroup.Item key={quiz.id} className="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h5>{quiz.title}</h5>
+                                        <p className="mb-0 text-muted">{quiz.description}</p>
+                                        <small>จำนวนคำถาม: {quiz.questions?.length || 0}</small>
+                                        <small className="ms-2">เวลา: {quiz.timeLimit} นาที</small>
+                                    </div>
+                                    <div>
+                                        <Button
+                                            variant="outline-secondary"
+                                            className="me-1"
+                                            onClick={() => handleReorderQuiz(quiz.id, 'up')}
+                                            disabled={index === 0}
+                                        >
+                                            <FaArrowUp />
+                                        </Button>
+                                        <Button
+                                            variant="outline-secondary"
+                                            className="me-1"
+                                            onClick={() => handleReorderQuiz(quiz.id, 'down')}
+                                            disabled={index === quizzes.length - 1}
+                                        >
+                                            <FaArrowDown />
+                                        </Button>
+                                        <Button
+                                            variant="outline-primary"
+                                            className="me-1"
+                                            onClick={() => {
+                                                setCurrentQuiz(quiz);
+                                                setQuizTimeLimit(quiz.timeLimit || 0);
+                                                setShowEditModal(true);
+                                            }}
+                                        >
+                                            <FaEdit />
+                                        </Button>
+                                        <Button
+                                            variant="outline-danger"
+                                            onClick={() => handleDeleteQuiz(quiz.id)}
+                                        >
+                                            <FaTrash />
+                                        </Button>
+                                    </div>
+                                </ListGroup.Item>
+                            ))}
+                        </ListGroup>
+                    ) : (
+                        <EmptyQuizState onCreateQuiz={() => setShowModal(true)} />
                     )}
+
                 </Card.Body>
             </Card>
 
@@ -267,6 +300,15 @@ function QuizDisplay({ classId }) {
                                 onChange={(e) => setQuizDescription(e.target.value)}
                             />
                         </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>เวลาในการทำแบบทดสอบ (นาที)</Form.Label>
+                            <Form.Control
+                                type="number"
+                                value={quizTimeLimit}
+                                onChange={(e) => setQuizTimeLimit(Number(e.target.value))}
+                                min="0"
+                            />
+                        </Form.Group>
                         <Button variant="primary" type="submit">
                             สร้างแบบทดสอบ
                         </Button>
@@ -298,10 +340,19 @@ function QuizDisplay({ classId }) {
                                 onChange={(e) => setCurrentQuiz({ ...currentQuiz, description: e.target.value })}
                             />
                         </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>เวลาในการทำแบบทดสอบ (นาที)</Form.Label>
+                            <Form.Control
+                                type="number"
+                                value={quizTimeLimit}
+                                onChange={(e) => setQuizTimeLimit(Number(e.target.value))}
+                                min="0"
+                            />
+                        </Form.Group>
                         <h5>คำถามในแบบทดสอบ</h5>
                         <ListGroup className="mb-3">
                             {currentQuiz?.questions?.map((question, index) => (
-                                <ListGroup.Item key={question.id || index}>
+                                <ListGroup.Item key={question.id || index} className="mb-3 p-3 border rounded">
                                     <div className="d-flex justify-content-between align-items-center mb-2">
                                         <h6>{question.text}</h6>
                                         <div>
@@ -330,6 +381,7 @@ function QuizDisplay({ classId }) {
                                 </ListGroup.Item>
                             ))}
                         </ListGroup>
+
                         <Button variant="outline-primary" className="mb-3" onClick={() => handleAddQuestion(currentQuiz)}>
                             <FaPlus /> เพิ่มคำถามใหม่
                         </Button>

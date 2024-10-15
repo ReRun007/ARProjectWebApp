@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Badge, Modal, Button, Form, ListGroup, Spinner, Image } from 'react-bootstrap';
-import { FaUser, FaClock, FaPaperclip, FaImage, FaDownload, FaComment, FaChevronDown, FaChevronUp, FaBullhorn,FaInfoCircle } from 'react-icons/fa';
+import { Card, Form, Button, Alert, Badge, Modal, ListGroup, Spinner, Image } from 'react-bootstrap';
+import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../../firebase';
-import { doc, getDoc, collection, addDoc, query, where, orderBy, getDocs, serverTimestamp, onSnapshot } from 'firebase/firestore';
-import { ref, getDownloadURL } from 'firebase/storage';
 import { useUserAuth } from '../../../context/UserAuthContext';
+import { FaImage, FaPlusCircle, FaUser, FaClock, FaPaperclip, FaDownload, FaComment, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
-function StudentPostDisplay({ posts, classId }) {
+function PostManagement({ classId }) {
+    const [posts, setPosts] = useState([]);
+    const [newPost, setNewPost] = useState('');
+    const [file, setFile] = useState(null);
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const [alertMessage, setAlertMessage] = useState(null);
+    const { user } = useUserAuth();
     const [showMediaModal, setShowMediaModal] = useState(false);
     const [selectedMedia, setSelectedMedia] = useState(null);
     const [usersData, setUsersData] = useState({});
@@ -16,36 +22,74 @@ function StudentPostDisplay({ posts, classId }) {
     const [comments, setComments] = useState({});
     const [loadingComments, setLoadingComments] = useState(true);
     const [commentUsers, setCommentUsers] = useState({});
-    const { user } = useUserAuth();
     const [expandedComments, setExpandedComments] = useState({});
 
     useEffect(() => {
-        fetchUsersData();
+        fetchPosts();
         const unsubscribe = subscribeToComments();
         return () => unsubscribe();
-    }, [posts, classId]);
+    }, [classId]);
+
+    useEffect(() => {
+        if (posts.length > 0 && user) {
+            fetchUsersData();
+        }
+    }, [posts, user]);
+
+    const fetchPosts = async () => {
+        try {
+            const postsQuery = query(
+                collection(db, 'Posts'),
+                where('classId', '==', classId),
+                orderBy('createdAt', 'desc')
+            );
+            const postsSnapshot = await getDocs(postsQuery);
+            const postsData = postsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setPosts(postsData);
+
+            // Fetch user data for posts
+            const userIds = new Set(postsData.map(post => post.createdBy));
+            const userData = {};
+            for (const userId of userIds) {
+                const userDoc = await getDoc(doc(db, 'Teachers', userId));
+                if (userDoc.exists()) {
+                    userData[userId] = userDoc.data();
+                }
+            }
+            setUsersData(prevData => ({ ...prevData, ...userData }));
+        } catch (error) {
+            console.error("Error fetching posts: ", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการโหลดโพสต์ กรุณาลองใหม่อีกครั้ง' });
+        }
+    };
 
     const fetchUsersData = async () => {
         const userData = {};
-        for (const post of posts) {
-            if (!userData[post.createdBy]) {
-                const userDoc = await getDoc(doc(db, 'Teachers', post.createdBy));
-                if (userDoc.exists()) {
-                    const user = userDoc.data();
-                    let profileImageUrl = null;
-                    if (user.URLImage) {
-                        try {
-                            profileImageUrl = await getDownloadURL(ref(storage, user.URLImage));
-                        } catch (error) {
-                            console.error("Error fetching profile image:", error);
+        const teacherIds = new Set([...posts.map(post => post.createdBy), user.uid]);
+
+        for (const teacherId of teacherIds) {
+            if (!userData[teacherId]) {
+                try {
+                    const userDoc = await getDoc(doc(db, 'Teachers', teacherId));
+                    if (userDoc.exists()) {
+                        const teacherData = userDoc.data();
+                        let profileImageUrl = null;
+                        if (teacherData.URLImage) {
+                            try {
+                                profileImageUrl = await getDownloadURL(ref(storage, teacherData.URLImage));
+                            } catch (error) {
+                                console.error("Error fetching profile image:", error);
+                            }
                         }
+                        userData[teacherId] = {
+                            username: teacherData.Username,
+                            firstName: teacherData.FirstName,
+                            lastName: teacherData.LastName,
+                            profileImage: profileImageUrl
+                        };
                     }
-                    userData[post.createdBy] = {
-                        username: user.Username,
-                        firstName: user.FirstName,
-                        lastName: user.LastName,
-                        profileImage: profileImageUrl
-                    };
+                } catch (error) {
+                    console.error("Error fetching teacher data:", error);
                 }
             }
         }
@@ -107,19 +151,66 @@ function StudentPostDisplay({ posts, classId }) {
                         console.error("Error fetching profile image:", error);
                     }
                 }
-                return {
-                    id: userId,
-                    ...userData,
-                    profileImage: profileImageUrl,
-                    firstName: userData.FirstName,
-                    lastName: userData.LastName,
-                    username: userData.Username
-                };
+                return { id: userId, ...userData, profileImage: profileImageUrl };
             }
         } catch (error) {
             console.error("Error fetching user data:", error);
         }
         return null;
+    };
+
+    const handleFileChange = (e) => {
+        if (e.target.files[0]) {
+            setFile(e.target.files[0]);
+            if (e.target.files[0].type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setPreviewUrl(reader.result);
+                };
+                reader.readAsDataURL(e.target.files[0]);
+            } else {
+                setPreviewUrl(null);
+            }
+        } else {
+            setFile(null);
+            setPreviewUrl(null);
+        }
+    };
+
+    const handlePostSubmit = async (e) => {
+        e.preventDefault();
+        if (newPost.trim() === '') return;
+
+        try {
+            let fileUrl = '';
+            let fileName = '';
+            if (file) {
+                const storageRef = ref(storage, `User/${user.email}/Post/${file.name}`);
+                await uploadBytes(storageRef, file);
+                fileUrl = await getDownloadURL(storageRef);
+                fileName = file.name;
+            }
+
+            const postData = {
+                content: newPost,
+                classId: classId,
+                createdAt: serverTimestamp(),
+                createdBy: user.uid,
+                createdByName: user.displayName || 'ไม่ระบุชื่อ',
+                fileUrl,
+                fileName
+            };
+
+            await addDoc(collection(db, 'Posts'), postData);
+            setNewPost('');
+            setFile(null);
+            setPreviewUrl(null);
+            fetchPosts();
+            setAlertMessage({ type: 'success', text: 'โพสต์สำเร็จ!' });
+        } catch (error) {
+            console.error("Error posting: ", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการโพสต์ กรุณาลองอีกครั้ง' });
+        }
     };
 
     const formatDate = (date) => {
@@ -226,20 +317,6 @@ function StudentPostDisplay({ posts, classId }) {
         }));
     };
 
-    const EmptyPostState = () => (
-        <Card className="shadow-sm mb-4 border-0 text-center py-5">
-          <Card.Body>
-            <FaBullhorn className="mb-3 text-primary" size={50} />
-            <Card.Title className="mb-3">ยังไม่มีโพสต์ในห้องเรียนนี้</Card.Title>
-            <Card.Text className="text-muted mb-4">
-              ครูผู้สอนยังไม่ได้สร้างโพสต์ใดๆ ในห้องเรียนนี้
-              <br />
-              ติดตามข่าวสารและประกาศสำคัญจากครูผู้สอนที่นี่
-            </Card.Text>
-          </Card.Body>
-        </Card>
-      );
-
     const renderComments = (postId, isModal = false) => {
         const postComments = comments[postId] || [];
         const isExpanded = expandedComments[postId] || isModal;
@@ -259,7 +336,9 @@ function StudentPostDisplay({ posts, classId }) {
                                     className="me-2"
                                 />
                                 <div>
-                                    <div className="fw-bold">{commentUsers[comment.createdBy]?.firstName || 'ผู้ใช้'} {commentUsers[comment.createdBy]?.lastName || ''}</div>
+                                    <div className="fw-bold">
+                                        {commentUsers[comment.createdBy]?.FirstName || 'ผู้ใช้'} {commentUsers[comment.createdBy]?.LastName || ''}
+                                    </div>
                                     <p>{comment.content}</p>
                                     <small className="text-muted">{formatDate(comment.createdAt?.toDate())}</small>
                                 </div>
@@ -300,6 +379,44 @@ function StudentPostDisplay({ posts, classId }) {
 
     return (
         <>
+            <Card className="shadow-sm mb-4">
+                <Card.Body>
+                    <Card.Title>สร้างโพสต์ใหม่</Card.Title>
+                    <Form onSubmit={handlePostSubmit}>
+                        <Form.Group className="mb-3">
+                            <Form.Control
+                                as="textarea"
+                                rows={3}
+                                value={newPost}
+                                onChange={(e) => setNewPost(e.target.value)}
+                                placeholder="เขียนโพสต์ของคุณที่นี่..."
+                            />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>
+                                <FaPlusCircle className="me-2" />
+                                เพิ่มไฟล์แนบ
+                            </Form.Label>
+                            <Form.Control type="file" onChange={handleFileChange} />
+                        </Form.Group>
+                        {previewUrl && (
+                            <div className="mb-3">
+                                <img src={previewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px' }} className="rounded" />
+                            </div>
+                        )}
+                        <Button variant="primary" type="submit">
+                            <FaImage className="me-2" /> โพสต์
+                        </Button>
+                    </Form>
+                </Card.Body>
+            </Card>
+
+            {alertMessage && (
+                <Alert variant={alertMessage.type} onClose={() => setAlertMessage(null)} dismissible className="mb-4">
+                    {alertMessage.text}
+                </Alert>
+            )}
+
             {posts.length > 0 ? (
                 posts.map((post) => (
                     <Card key={post.id} className="shadow-sm mb-4 border-0 overflow-hidden">
@@ -313,11 +430,15 @@ function StudentPostDisplay({ posts, classId }) {
                                         style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                                     />
                                 ) : (
-                                    <EmptyPostState />
+                                    <div className="bg-primary text-white rounded-circle p-2 me-3">
+                                        <FaUser />
+                                    </div>
                                 )}
                                 <div>
                                     <strong className="d-block">
-                                        {usersData[post.createdBy]?.firstName} {usersData[post.createdBy]?.lastName} (@{usersData[post.createdBy]?.username || 'ไม่ระบุชื่อ'})
+                                        {post.createdBy === user.uid
+                                            ? `${user.displayName || 'คุณ'} (คุณ)`
+                                            : `${usersData[post.createdBy]?.firstName} ${usersData[post.createdBy]?.lastName} (@${usersData[post.createdBy]?.username || 'ไม่ระบุชื่อ'})`}
                                     </strong>
                                     <small className="text-muted">
                                         <FaClock className="me-1" />
@@ -342,7 +463,13 @@ function StudentPostDisplay({ posts, classId }) {
                     </Card>
                 ))
             ) : (
-                <EmptyPostState />
+                <Card className="shadow-sm mb-4 border-0 text-center py-5">
+                    <Card.Body>
+                        <FaImage className="mb-3 text-muted" size={50} />
+                        <Card.Title>ยังไม่มีโพสต์ในห้องเรียนนี้</Card.Title>
+                        <Card.Text className="text-muted">เริ่มแบ่งปันข่าวสารและประกาศสำคัญกับนักเรียนของคุณ!</Card.Text>
+                    </Card.Body>
+                </Card>
             )}
 
             <Modal show={showMediaModal} onHide={() => setShowMediaModal(false)} size="lg" centered>
@@ -396,4 +523,4 @@ function StudentPostDisplay({ posts, classId }) {
     );
 }
 
-export default StudentPostDisplay;
+export default PostManagement;

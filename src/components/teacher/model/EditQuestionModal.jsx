@@ -62,15 +62,15 @@ function EditQuestionModal({ show, onHide, question, onSave, classId, quizId }) 
     const handleImageUpload = async (file, type, index = null) => {
         try {
             if (!file) return;
-    
+
             const fileExtension = file.name.split('.').pop();
             const fileName = `${Date.now()}.${fileExtension}`;
             const storagePath = `quizzes/${classId}/${quizId}/${type === 'question' ? 'question' : `option_${index}`}_${fileName}`;
-            
+
             const storageRef = ref(storage, storagePath);
             await uploadBytes(storageRef, file);
             const imageUrl = await getDownloadURL(storageRef);
-    
+
             if (type === 'question') {
                 setEditedQuestion({ ...editedQuestion, image: imageUrl });
             } else if (type === 'option') {
@@ -87,7 +87,7 @@ function EditQuestionModal({ show, onHide, question, onSave, classId, quizId }) 
             alert("กรุณากรอกคำถามและตัวเลือกทุกข้อให้ครบถ้วน");
             return;
         }
-        
+    
         // สร้าง object ใหม่ที่มีเฉพาะข้อมูลที่จำเป็น
         const questionToSave = {
             text: editedQuestion.text,
@@ -98,10 +98,19 @@ function EditQuestionModal({ show, onHide, question, onSave, classId, quizId }) 
             })),
             correctAnswer: editedQuestion.correctAnswer
         };
-        
+    
         onSave(questionToSave);
         onHide();
+    
+        // เคลียร์ข้อมูลใน editedQuestion
+        setEditedQuestion({
+            text: '',
+            image: null,
+            options: [{ text: '', image: null }, { text: '', image: null }],
+            correctAnswer: 0
+        });
     };
+    
 
     return (
         <Modal show={show} onHide={onHide} size="lg">
@@ -113,7 +122,8 @@ function EditQuestionModal({ show, onHide, question, onSave, classId, quizId }) 
                     <Form.Group className="mb-3">
                         <Form.Label>คำถาม</Form.Label>
                         <Form.Control
-                            type="text"
+                            as="textarea" // เปลี่ยนเป็น textarea
+                            rows={3} // กำหนดจำนวนแถว
                             value={editedQuestion.text}
                             onChange={handleQuestionChange}
                             placeholder="พิมพ์คำถามที่นี่"

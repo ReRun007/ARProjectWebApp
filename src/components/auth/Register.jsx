@@ -130,169 +130,178 @@ function Register() {
 
             navigate("/");
         } catch (err) {
+            console.error("Registration error:", err);
             setError(err.message);
         }
     }
 
     return (
-        <Container className="py-5">
-            <Row className="justify-content-center">
-                <Col md={8} lg={6}>
-                    <Card className="shadow-lg">
-                        <Card.Body className="p-5">
-                            <h2 className="text-center mb-4">ลงทะเบียน</h2>
-                            {error && <Alert variant='danger'>{error}</Alert>}
+        <Container fluid className="bg-light min-vh-100 d-flex align-items-center py-5">
+            <Container>
+                <Row className="justify-content-center">
+                    <Col md={8} lg={6}>
+                        <Card className="shadow-lg border-0 rounded-lg mt-5">
+                            <Card.Header className="bg-primary text-white text-center py-4">
+                                <Image src="https://firebasestorage.googleapis.com/v0/b/arproject-b2e7b.appspot.com/o/Logo%2Flearnmate-high-resolution-logo-white-transparent.png?alt=media&token=81946893-7f22-489c-9477-fcf7c20f6ec8" alt="LearnMate Logo" height="50" className="mb-3" />
+                                <h2 className="font-weight-light">ลงทะเบียน</h2>
+                            </Card.Header>
+                            <Card.Body className="px-5 py-4">
+                                {error && <Alert variant='danger'>{error}</Alert>}
 
-                            <Form onSubmit={handleSubmit}>
-                                <Form.Group className="mb-3 text-center">
-                                    <Form.Label>รูปโปรไฟล์</Form.Label>
-                                    <div className="d-flex justify-content-center mb-3">
-                                        <Image src={avatarUrl || 'https://via.placeholder.com/150'} roundedCircle width={150} height={150} />
-                                    </div>
-                                    <div className="d-flex justify-content-center flex-wrap mb-3">
-                                        {defaultAvatars.map((avatar, index) => (
-                                            <Image
-                                                key={index}
-                                                src={avatar.url}
-                                                roundedCircle
-                                                width={50}
-                                                height={50}
-                                                className="m-1 cursor-pointer"
-                                                onClick={() => handleDefaultAvatarSelect(avatar.url)}
-                                            />
-                                        ))}
-                                    </div>
-                                    <Form.Control
-                                        type="file"
-                                        onChange={handleAvatarChange}
-                                        accept="image/*"
-                                    />
-                                </Form.Group>
-
-                                <Form.Group className="mb-3" controlId="userType">
-                                    <Form.Label>ประเภทผู้ใช้</Form.Label>
-                                    <div>
-                                        <Form.Check
-                                            inline
-                                            type="radio"
-                                            label="นักเรียน"
-                                            name="userType"
-                                            id="student"
-                                            onChange={() => setUserType('student')}
+                                <Form onSubmit={handleSubmit}>
+                                    <Form.Group className="mb-4 text-center">
+                                        <Form.Label>รูปโปรไฟล์</Form.Label>
+                                        <div className="d-flex justify-content-center mb-3">
+                                            <Image src={avatarUrl || 'https://via.placeholder.com/150'} roundedCircle width={150} height={150} className="border border-primary" />
+                                        </div>
+                                        <div className="d-flex justify-content-center flex-wrap mb-3">
+                                            {defaultAvatars.map((avatar, index) => (
+                                                <Image
+                                                    key={index}
+                                                    src={avatar.url}
+                                                    roundedCircle
+                                                    width={50}
+                                                    height={50}
+                                                    className="m-1 cursor-pointer border border-primary"
+                                                    onClick={() => handleDefaultAvatarSelect(avatar.url)}
+                                                />
+                                            ))}
+                                        </div>
+                                        <Form.Control
+                                            type="file"
+                                            onChange={handleAvatarChange}
+                                            accept="image/*"
+                                            className="form-control-file"
                                         />
-                                        <Form.Check
-                                            inline
-                                            type="radio"
-                                            label="ครู"
-                                            name="userType"
-                                            id="teacher"
-                                            onChange={() => setUserType('teacher')}
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3" controlId="userType">
+                                        <Form.Label>ประเภทผู้ใช้</Form.Label>
+                                        <div className="d-flex justify-content-around">
+                                            <Form.Check
+                                                type="radio"
+                                                label={<><FaUserGraduate className="me-2" />นักเรียน</>}
+                                                name="userType"
+                                                id="student"
+                                                onChange={() => setUserType('student')}
+                                                className="user-type-radio"
+                                            />
+                                            <Form.Check
+                                                type="radio"
+                                                label={<><FaChalkboardTeacher className="me-2" />ครู</>}
+                                                name="userType"
+                                                id="teacher"
+                                                onChange={() => setUserType('teacher')}
+                                                className="user-type-radio"
+                                            />
+                                        </div>
+                                    </Form.Group>
+
+                                    <Row>
+                                        <Col md={6}>
+                                            <Form.Group className="mb-3" controlId="name">
+                                                <Form.Label><FaUser className="me-2" />ชื่อ</Form.Label>
+                                                <Form.Control 
+                                                    type="text"
+                                                    placeholder="กรอกชื่อ"
+                                                    onChange={(e) => setName(e.target.value)}
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                        <Col md={6}>
+                                            <Form.Group className="mb-3" controlId="surname">
+                                                <Form.Label><FaUser className="me-2" />นามสกุล</Form.Label>
+                                                <Form.Control 
+                                                    type="text"
+                                                    placeholder="กรอกนามสกุล"
+                                                    onChange={(e) => setSurname(e.target.value)}
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                    </Row>
+
+                                    <Form.Group className="mb-3" controlId="username">
+                                        <Form.Label><FaUser className="me-2" />ชื่อผู้ใช้</Form.Label>
+                                        <Form.Control 
+                                            type="text"
+                                            placeholder="กรอกชื่อผู้ใช้"
+                                            onChange={(e) => setUsername(e.target.value)}
                                         />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3" controlId="email">
+                                        <Form.Label><FaEnvelope className="me-2" />อีเมล</Form.Label>
+                                        <Form.Control 
+                                            type="email"
+                                            placeholder="กรอกอีเมล"
+                                            onChange={(e) => setEmail(e.target.value)}
+                                        />
+                                    </Form.Group>
+
+                                    <Row>
+                                        <Col md={6}>
+                                            <Form.Group className="mb-3" controlId="password">
+                                                <Form.Label><FaLock className="me-2" />รหัสผ่าน</Form.Label>
+                                                <Form.Control 
+                                                    type="password"
+                                                    placeholder="กรอกรหัสผ่าน"
+                                                    onChange={(e) => setPassword(e.target.value)}
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                        <Col md={6}>
+                                            <Form.Group className="mb-3" controlId="confirmPassword">
+                                                <Form.Label><FaLock className="me-2" />ยืนยันรหัสผ่าน</Form.Label>
+                                                <Form.Control 
+                                                    type="password"
+                                                    placeholder="ยืนยันรหัสผ่าน"
+                                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                                />
+                                            </Form.Group>
+                                        </Col>
+                                    </Row>
+
+                                    <Form.Group className="mb-3" controlId="gender">
+                                        <Form.Label><FaUser className="me-2" />เพศ</Form.Label>
+                                        <Form.Select onChange={(e) => setGender(e.target.value)}>
+                                            <option value="">เลือกเพศ</option>
+                                            <option value="male">ชาย</option>
+                                            <option value="female">หญิง</option>
+                                            <option value="other">อื่นๆ</option>
+                                        </Form.Select>
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3" controlId="birthdate">
+                                        <Form.Label><FaCalendar className="me-2" />วันเกิด</Form.Label>
+                                        <Form.Control 
+                                            type="date"
+                                            onChange={(e) => setBirthdate(e.target.value)}
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-4" controlId="institution">
+                                        <Form.Label><FaSchool className="me-2" />สถาบัน</Form.Label>
+                                        <Form.Control 
+                                            type="text"
+                                            placeholder="กรอกชื่อสถาบัน"
+                                            onChange={(e) => setInstitution(e.target.value)}
+                                        />
+                                    </Form.Group>
+
+                                    <div className="d-grid gap-2 mb-3">
+                                        <Button variant="primary" type="submit" size="lg">ลงทะเบียน</Button>
                                     </div>
-                                </Form.Group>
-
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3" controlId="name">
-                                            <Form.Label>ชื่อ</Form.Label>
-                                            <Form.Control 
-                                                type="text"
-                                                placeholder="กรอกชื่อ"
-                                                onChange={(e) => setName(e.target.value)}
-                                            />
-                                        </Form.Group>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3" controlId="surname">
-                                            <Form.Label>นามสกุล</Form.Label>
-                                            <Form.Control 
-                                                type="text"
-                                                placeholder="กรอกนามสกุล"
-                                                onChange={(e) => setSurname(e.target.value)}
-                                            />
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
-
-                                <Form.Group className="mb-3" controlId="username">
-                                    <Form.Label>ชื่อผู้ใช้</Form.Label>
-                                    <Form.Control 
-                                        type="text"
-                                        placeholder="กรอกชื่อผู้ใช้"
-                                        onChange={(e) => setUsername(e.target.value)}
-                                    />
-                                </Form.Group>
-
-                                <Form.Group className="mb-3" controlId="email">
-                                    <Form.Label>อีเมล</Form.Label>
-                                    <Form.Control 
-                                        type="email"
-                                        placeholder="กรอกอีเมล"
-                                        onChange={(e) => setEmail(e.target.value)}
-                                    />
-                                </Form.Group>
-
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3" controlId="password">
-                                            <Form.Label>รหัสผ่าน</Form.Label>
-                                            <Form.Control 
-                                                type="password"
-                                                placeholder="กรอกรหัสผ่าน"
-                                                onChange={(e) => setPassword(e.target.value)}
-                                            />
-                                        </Form.Group>
-                                    </Col>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3" controlId="confirmPassword">
-                                            <Form.Label>ยืนยันรหัสผ่าน</Form.Label>
-                                            <Form.Control 
-                                                type="password"
-                                                placeholder="ยืนยันรหัสผ่าน"
-                                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                            />
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
-
-                                <Form.Group className="mb-3" controlId="gender">
-                                    <Form.Label>เพศ</Form.Label>
-                                    <Form.Select onChange={(e) => setGender(e.target.value)}>
-                                        <option value="">เลือกเพศ</option>
-                                        <option value="male">ชาย</option>
-                                        <option value="female">หญิง</option>
-                                        <option value="other">อื่นๆ</option>
-                                    </Form.Select>
-                                </Form.Group>
-
-                                <Form.Group className="mb-3" controlId="birthdate">
-                                    <Form.Label>วันเกิด</Form.Label>
-                                    <Form.Control 
-                                        type="date"
-                                        onChange={(e) => setBirthdate(e.target.value)}
-                                    />
-                                </Form.Group>
-
-                                <Form.Group className="mb-4" controlId="institution">
-                                    <Form.Label>สถาบัน</Form.Label>
-                                    <Form.Control 
-                                        type="text"
-                                        placeholder="กรอกชื่อสถาบัน"
-                                        onChange={(e) => setInstitution(e.target.value)}
-                                    />
-                                </Form.Group>
-
-                                <div className="d-grid gap-2">
-                                    <Button variant="primary" type="submit" size="lg">ลงทะเบียน</Button>
+                                </Form>
+                            </Card.Body>
+                            <Card.Footer className="text-center py-3">
+                                <div className="small">
+                                    มีบัญชีอยู่แล้ว? <Link to="/login" className="text-decoration-none">เข้าสู่ระบบ</Link>
                                 </div>
-                            </Form>
-                            <div className="text-center mt-4">
-                                มีบัญชีอยู่แล้ว? <Link to="/login">เข้าสู่ระบบ</Link>
-                            </div>
-                        </Card.Body>
-                    </Card>
-                </Col>
-            </Row>
+                            </Card.Footer>
+                        </Card>
+                    </Col>
+                </Row>
+            </Container>
         </Container>
     )
 }

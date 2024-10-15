@@ -8,6 +8,7 @@ import Header from '../Header';
 import { FaCheckCircle, FaTimesCircle, FaClock, FaArrowRight, FaArrowLeft, FaQuestionCircle } from 'react-icons/fa';
 import QuizResultDisplay from './QuizResultDisplay';
 import QuizOptionDisplay from './QuizOptionDisplay';
+import { recordQuizAttempt } from '../../../utils/attendanceUtils';
 
 function StudentQuizTaker() {
     const { classId, quizId } = useParams();
@@ -101,7 +102,7 @@ function StudentQuizTaker() {
             });
             const finalScore = correctAnswers;
             setScore(finalScore);
-
+    
             const resultData = {
                 quizId: quizId,
                 userId: user.uid,
@@ -110,9 +111,12 @@ function StudentQuizTaker() {
                 answers: answers,
                 submittedAt: new Date()
             };
-
+    
             await setDoc(doc(db, 'QuizResults', `${quizId}_${user.uid}`), resultData);
-
+    
+            // บันทึกการทำแบบทดสอบ
+            await recordQuizAttempt(user.uid, classId, quizId);
+    
             setSubmitted(true);
             setQuizResult(resultData);
         } catch (error) {

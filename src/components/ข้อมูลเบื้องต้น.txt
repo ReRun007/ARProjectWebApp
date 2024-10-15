@@ -1,6 +1,26 @@
 ฐานข้อมูลตอนนี้
 Firebase Database Structure:
 
+-Assignments
+  - classId: string
+  - createdAt: timestamp
+  - description: string
+  - dueDateTime: string 
+  - fileUrl: string
+  - id: string
+  - points: string
+  - title: string
+
+-Attendances
+  - activityId: string
+  - activityType: string
+  - classId: string
+  - date: timestamp
+  - duration: number
+  - studentId: string
+
+
+
 - Classrooms
   - ClassId: string
   - ClassName: string
@@ -76,11 +96,15 @@ Firebase Database Structure:
   - totalQuestions: number
   - completedAt: timestamp
 
-- Assignments (implied, not directly shown in provided code)
-  - id: string
-  - title: string
-  - dueDate: timestamp
-  - classId: string (reference to Classrooms)
+- Submissions
+  - assignmentId: string
+  - classId: string
+  - feedback: string
+  - fileName: string
+  - fileUrl: string
+  - grade: number
+  - studentId: string
+  - submittedAt: timestamp
 
 
 ==========================================================================
@@ -95,28 +119,43 @@ ARPROJECT/
     │   ├── student/
     │   │   ├── model/
     │   │   │   ├── EmptyClassroomState.jsx
-    │   │   │   └── StudentPostDisplay.jsx
+    │   │   │   ├── QuizOptionDisplay.jsx
+    │   │   │   ├── QuizResultDisplay.jsx
+    │   │   │   ├── StudentAssignmentDisplay.jsx      
+    │   │   │   ├── StudentLessonDisplay.jsx
+    │   │   │   ├── StudentPostDisplay.jsx
+    │   │   │   ├── StudentQuizDisplay.jsx
+    │   │   │   └── StudentQuizTaker.jsx
     │   │   ├── Header.jsx
     │   │   ├── Home.jsx
-    │   │   └── StudentClassroomDetails.jsx
+    │   │   ├── StudentClassroomDetails.jsx
+    │   │   └── StudentProfileEdit.jsx
     │   └── teacher/
     │       ├── model/
     │       │   ├── EditQuestionModal.jsx
+    │       │   ├── GradeReport.jsx
     │       │   ├── LessonDisplay.jsx
-    │       │   ├── PostDisplay.jsx
+    │       │   ├── PostManagement.jsx
     │       │   ├── QuizDisplay.jsx
     │       │   ├── QuizEditor.jsx
     │       │   ├── QuizTaker.jsx
     │       │   ├── ShowClassCode.jsx
-    │       │   └── StudentListModal.jsx
+    │       │   ├── StudentListModal.jsx
+    │       │   └── TeacherAssignmentGrading.jsx
+    │       ├── AssignmentManagement.jsx
+    │       ├── AttendanceReport.jsx
     │       ├── ClassroomDetails.jsx
     │       ├── ClassroomPost.jsx
+    │       ├── EmptyClassroomState.jsx
     │       ├── Header.jsx
     │       ├── Home.jsx
     │       ├── LessonManagement.jsx
-    │       └── QuizManagement.jsx
+    │       ├── QuizManagement.jsx
+    │       ├── TeacherProfileEdit.jsx
     ├── context/
     │   └── UserAuthContext.jsx
+    ├── utils/
+    │   └── attendanceUtils.js
     ├── App.css
     ├── App.jsx
     ├── firebase.js

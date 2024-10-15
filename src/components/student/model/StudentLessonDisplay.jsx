@@ -1,15 +1,62 @@
 import React, { useState } from 'react';
 import { Card, Button, Modal } from 'react-bootstrap';
-import { FaBook, FaDownload, FaEye } from 'react-icons/fa';
+import { FaBook, FaDownload, FaEye, FaInfoCircle } from 'react-icons/fa';
+import { useUserAuth } from '../../../context/UserAuthContext';
+import { recordLessonView } from '../../../utils/attendanceUtils';
 
-function StudentLessonDisplay({ lessons }) {
+function StudentLessonDisplay({ lessons, classId }) {
     const [showLessonModal, setShowLessonModal] = useState(false);
     const [selectedLesson, setSelectedLesson] = useState(null);
+    const [viewStartTime, setViewStartTime] = useState(null);
+    const { user } = useUserAuth();
+
 
     const handleShowLesson = (lesson) => {
         setSelectedLesson(lesson);
         setShowLessonModal(true);
+        setViewStartTime(Date.now());
     };
+
+
+    const handleCloseLesson = async () => {
+        if (viewStartTime && user && selectedLesson && classId) {
+            const duration = Math.round((Date.now() - viewStartTime) / 1000);
+            try {
+                console.log('Recording lesson view:', { 
+                    studentId: user.uid, 
+                    classId, 
+                    lessonId: selectedLesson.id, 
+                    duration 
+                });
+                await recordLessonView(user.uid, classId, selectedLesson.id, duration);
+                console.log('Lesson view recorded successfully');
+            } catch (error) {
+                console.error('Error recording lesson view:', error);
+            }
+        } else {
+            console.warn('Missing required data for recording lesson view', { 
+                user, selectedLesson, classId, viewStartTime 
+            });
+        }
+        setShowLessonModal(false);
+        setSelectedLesson(null);
+        setViewStartTime(null);
+    };
+
+    const EmptyLessonState = () => (
+        <Card className="text-center ">
+            <Card.Body className="py-5">
+                <FaInfoCircle size={64} className="mb-3 text-primary" />
+                <Card.Title>ยังไม่มีบทเรียนในห้องเรียนนี้</Card.Title>
+                <Card.Text>
+                    ครูผู้สอนยังไม่ได้เพิ่มบทเรียนสำหรับห้องเรียนนี้
+                    <br />
+                    คุณจะเห็นบทเรียนที่นี่เมื่อครูเพิ่มเข้ามา
+                </Card.Text>
+            </Card.Body>
+        </Card>
+    );
+
 
     return (
         <>
@@ -38,12 +85,12 @@ function StudentLessonDisplay({ lessons }) {
                             </Card>
                         ))
                     ) : (
-                        <p className="text-center text-muted">ยังไม่มีบทเรียนในห้องเรียนนี้</p>
+                        <EmptyLessonState />
                     )}
                 </Card.Body>
             </Card>
 
-            <Modal show={showLessonModal} onHide={() => setShowLessonModal(false)} size="lg">
+            <Modal show={showLessonModal} onHide={handleCloseLesson} size="lg">
                 <Modal.Header closeButton>
                     <Modal.Title>บทที่ {selectedLesson?.order}: {selectedLesson?.title}</Modal.Title>
                 </Modal.Header>
@@ -60,7 +107,7 @@ function StudentLessonDisplay({ lessons }) {
                     )}
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowLessonModal(false)}>
+                    <Button variant="secondary" onClick={handleCloseLesson}>
                         ปิด
                     </Button>
                 </Modal.Footer>

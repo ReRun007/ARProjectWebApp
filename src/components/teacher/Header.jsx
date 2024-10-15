@@ -89,20 +89,20 @@ function Header({ teacherInfo: propTeacherInfo, classrooms: propClassrooms }) {
         return (
             <Navbar bg="primary" variant="dark" expand="lg" className="py-3">
                 <Container>
-                    <Navbar.Brand href="/teacher/home" className="fs-4">LearningSystem</Navbar.Brand>
+                    <Navbar.Brand href="/teacher/home" className="fs-4">LearnMate</Navbar.Brand>
                     <Spinner animation="border" variant="light" />
                 </Container>
             </Navbar>
         );
     }
 
+
     return (
         <>
             <Navbar bg="primary" variant="dark" expand="lg" className="py-2 shadow-sm">
                 <Container fluid>
                     <Navbar.Brand as={Link} to="/teacher/home" className="d-flex align-items-center">
-                        <Image src="logo.png" height="30" className="me-2" />
-                        <span className="fs-4 fw-bold">LearningSystem</span>
+                        <Image src="https://firebasestorage.googleapis.com/v0/b/arproject-b2e7b.appspot.com/o/Logo%2Flearnmate-high-resolution-logo-white-transparent.png?alt=media&token=81946893-7f22-489c-9477-fcf7c20f6ec8" height="30" className="me-2" alt="LearnMate Logo" />
                     </Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
@@ -152,7 +152,7 @@ function Header({ teacherInfo: propTeacherInfo, classrooms: propClassrooms }) {
                 <Offcanvas.Body className="p-0">
                     {teacherInfo ? (
                         <ListGroup variant="flush">
-                            <ListGroup.Item action as={Link} to="/profile">
+                            <ListGroup.Item action as={Link} to="/teacher/profile/edit">
                                 <FaCog className="me-2" /> ตั้งค่าโปรไฟล์
                             </ListGroup.Item>
                             <ListGroup.Item>

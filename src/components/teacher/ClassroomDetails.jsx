@@ -1,21 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from './Header';
-
+import { useUserAuth } from '../../context/UserAuthContext';
 import { db, storage } from '../../firebase';
-import { doc, getDoc, collection, query, where, getDocs, deleteDoc, addDoc, orderBy, serverTimestamp } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, getDoc, collection, query, where, getDocs, deleteDoc, orderBy } from 'firebase/firestore';
+import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Alert, Badge, Nav } from 'react-bootstrap';
+import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey, FaTasks, FaGraduationCap, FaCalendarCheck } from 'react-icons/fa';
 
-import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Form, Alert, Badge, Tabs, Tab } from 'react-bootstrap';
-import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey, FaFile, FaImage, FaPlusCircle } from 'react-icons/fa';
-
+import PostManagement from './model/PostManagement';
 import StudentListModal from './model/StudentListModal';
 import ShowClassCode from './model/ShowClassCode';
-import PostDisplay from './model/PostDisplay';
 import LessonDisplay from './model/LessonDisplay';
 import QuizDisplay from './model/QuizDisplay';
+import AssignmentManagement from './AssignmentManagement';
+import TeacherAssignmentGrading from './model/TeacherAssignmentGrading';
+import GradeReport from './model/GradeReport';
+import AttendanceReport from './AttendanceReport';
 
-import { useUserAuth } from '../../context/UserAuthContext';
+
 
 function ClassroomDetails() {
     const { classId } = useParams();
@@ -25,13 +27,15 @@ function ClassroomDetails() {
     const [showClassCode, setShowClassCode] = useState(false);
     const [showStudents, setShowStudents] = useState(false);
     const [alertMessage, setAlertMessage] = useState(null);
-    const [posts, setPosts] = useState([]);
-    const [newPost, setNewPost] = useState('');
-    const [file, setFile] = useState(null);
-    const [previewUrl, setPreviewUrl] = useState(null);
     const [lessonCount, setLessonCount] = useState(0);
     const [quizCount, setQuizCount] = useState(0);
+    const [assignmentCount, setAssignmentCount] = useState(0);
     const { user } = useUserAuth();
+    const [showGradeReport, setShowGradeReport] = useState(false);
+    const [activeTab, setActiveTab] = useState('posts');
+    const [posts, setPosts] = useState([]);
+
+
 
     const fetchPosts = async () => {
         try {
@@ -187,6 +191,17 @@ function ClassroomDetails() {
         }
     };
 
+    const checkAssignments = async () => {
+        try {
+            const q = query(collection(db, "Assignments"), where("classId", "==", classId));
+            const querySnapshot = await getDocs(q);
+            setAssignmentCount(querySnapshot.size);
+        } catch (error) {
+            console.error("Error checking assignments:", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการตรวจสอบงานที่มอบหมาย' });
+        }
+    };
+
     useEffect(() => {
         const loadData = async () => {
             if (classId) {
@@ -196,6 +211,7 @@ function ClassroomDetails() {
                     await fetchPosts();
                     await checkLessons();
                     await checkQuizzes();
+                    await checkAssignments();
                 } catch (error) {
                     console.error("Error loading data: ", error);
                     setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการโหลดข้อมูล กรุณารีเฟรชหน้าเว็บ' });
@@ -223,6 +239,26 @@ function ClassroomDetails() {
         return <Container className="text-center mt-5"><h2>ไม่พบห้องเรียนที่ระบุ</h2></Container>;
     }
 
+    const renderContent = () => {
+        switch (activeTab) {
+            case 'posts':
+                return <PostManagement classId={classId} />;
+            case 'lessons':
+                return <LessonDisplay classId={classId} />;
+            case 'quizzes':
+                return <QuizDisplay classId={classId} />;
+            case 'assignments':
+                return <AssignmentManagement classId={classId} />;
+            case 'grading':
+                return <TeacherAssignmentGrading classId={classId} />;
+            case 'attendance':
+                return <AttendanceReport classId={classId} />;
+            default:
+                return <div>เลือกเมนูเพื่อดูเนื้อหา</div>;
+        }
+    };
+
+
     return (
         <>
             <Header />
@@ -234,65 +270,42 @@ function ClassroomDetails() {
                                 {alertMessage.text}
                             </Alert>
                         )}
+                        <Card className="shadow-sm mb-4">
+                            <Card.Body>
+                                <Card.Title className="display-4 mb-2">{classroom.ClassName}</Card.Title>
+                                <Card.Subtitle className="mb-4 text-muted">{classroom.ClassId}</Card.Subtitle>
+                                <Card.Text>{classroom.ClassDescription}</Card.Text>
+                            </Card.Body>
+                        </Card>
                         <Row>
-                            <Col lg={8}>
+                            <Col lg={3}>
                                 <Card className="shadow-sm mb-4">
                                     <Card.Body>
-                                        <Card.Title className="display-4 mb-2">{classroom.ClassName}</Card.Title>
-                                        <Card.Subtitle className="mb-4 text-muted">{classroom.ClassId}</Card.Subtitle>
-                                        <Card.Text>{classroom.ClassDescription}</Card.Text>
+                                        <Nav variant="pills" className="flex-column" activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
+                                            <Nav.Item>
+                                                <Nav.Link eventKey="posts"><FaChalkboardTeacher className="me-2" />โพสต์</Nav.Link>
+                                            </Nav.Item>
+                                            <Nav.Item>
+                                                <Nav.Link eventKey="lessons"><FaBook className="me-2" />บทเรียน</Nav.Link>
+                                            </Nav.Item>
+                                            <Nav.Item>
+                                                <Nav.Link eventKey="quizzes"><FaClipboardList className="me-2" />แบบทดสอบ</Nav.Link>
+                                            </Nav.Item>
+                                            <Nav.Item>
+                                                <Nav.Link eventKey="assignments"><FaTasks className="me-2" />งานที่มอบหมาย</Nav.Link>
+                                            </Nav.Item>
+                                            <Nav.Item>
+                                                <Nav.Link eventKey="grading"><FaGraduationCap className="me-2" />ให้คะแนน</Nav.Link>
+                                            </Nav.Item>
+                                            <Nav.Item>
+                                                <Nav.Link eventKey="attendance"><FaCalendarCheck className="me-2" />รายงานการเข้าเรียน</Nav.Link>
+                                            </Nav.Item>
+                                        </Nav>
                                     </Card.Body>
                                 </Card>
-
-                                <Tabs defaultActiveKey="posts" id="classroom-tabs" className="mb-4">
-                                    <Tab eventKey="posts" title="โพสต์">
-                                        <Card className="shadow-sm mb-4">
-                                            <Card.Body>
-                                                <Card.Title>สร้างโพสต์ใหม่</Card.Title>
-                                                <Form onSubmit={handlePostSubmit}>
-                                                    <Form.Group className="mb-3">
-                                                        <Form.Control
-                                                            as="textarea"
-                                                            rows={3}
-                                                            value={newPost}
-                                                            onChange={(e) => setNewPost(e.target.value)}
-                                                            placeholder="เขียนโพสต์ของคุณที่นี่..."
-                                                        />
-                                                    </Form.Group>
-                                                    <Form.Group className="mb-3">
-                                                        <Form.Label>
-                                                            <FaPlusCircle className="me-2" />
-                                                            เพิ่มไฟล์แนบ
-                                                        </Form.Label>
-                                                        <Form.Control type="file" onChange={handleFileChange} />
-                                                    </Form.Group>
-                                                    {previewUrl && (
-                                                        <div className="mb-3">
-                                                            <img src={previewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px' }} className="rounded" />
-                                                        </div>
-                                                    )}
-                                                    <Button variant="primary" type="submit">
-                                                        <FaImage className="me-2" /> โพสต์
-                                                    </Button>
-                                                </Form>
-                                            </Card.Body>
-                                        </Card>
-
-                                        <PostDisplay posts={posts} />
-                                    </Tab>
-                                    <Tab eventKey="lessons" title="บทเรียน">
-                                        <LessonDisplay classId={classId} />
-                                    </Tab>
-                                    <Tab eventKey="quizzes" title="แบบทดสอบ">
-                                        <QuizDisplay classId={classId} />
-                                    </Tab>
-                                </Tabs>
-                            </Col>
-
-                            <Col lg={4}>
                                 <Card className="shadow-sm mb-4">
                                     <Card.Body>
-                                        <Card.Title className="h4 mb-4">การจัดการห้องเรียน</Card.Title>
+                                        <Card.Title className="h5 mb-3">การจัดการห้องเรียน</Card.Title>
                                         <ListGroup variant="flush">
                                             <ListGroup.Item action onClick={() => setShowStudents(true)} className="d-flex justify-content-between align-items-center">
                                                 <span><FaUsers className="me-2" /> จัดการรายชื่อนักเรียน</span>
@@ -301,27 +314,17 @@ function ClassroomDetails() {
                                             <ListGroup.Item action onClick={() => setShowClassCode(true)}>
                                                 <FaKey className="me-2" /> แสดงรหัสห้องเรียน
                                             </ListGroup.Item>
+                                            <ListGroup.Item action onClick={() => setShowGradeReport(true)}>
+                                                <FaClipboardList className="me-2" /> แสดงรายงานคะแนน
+                                            </ListGroup.Item>
                                         </ListGroup>
                                     </Card.Body>
                                 </Card>
-
+                            </Col>
+                            <Col lg={9}>
                                 <Card className="shadow-sm mb-4">
                                     <Card.Body>
-                                        <Card.Title className="h4 mb-4">ภาพรวมห้องเรียน</Card.Title>
-                                        <ListGroup variant="flush">
-                                            <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                                                <div><FaUsers className="me-2" /> จำนวนนักเรียน</div>
-                                                <span>{students.length} คน</span>
-                                            </ListGroup.Item>
-                                            <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                                                <div><FaBook className="me-2" /> จำนวนบทเรียน</div>
-                                                <span>{lessonCount} บท</span>
-                                            </ListGroup.Item>
-                                            <ListGroup.Item className="d-flex justify-content-between align-items-center">
-                                                <div><FaClipboardList className="me-2" /> จำนวนแบบทดสอบ</div>
-                                                <span>{quizCount} ชุด</span>
-                                            </ListGroup.Item>
-                                        </ListGroup>
+                                        {renderContent()}
                                     </Card.Body>
                                 </Card>
                             </Col>
@@ -342,6 +345,15 @@ function ClassroomDetails() {
                 students={students}
                 onRemoveStudent={handleRemoveStudent}
             />
+
+            <Modal show={showGradeReport} onHide={() => setShowGradeReport(false)} size="xl">
+                <Modal.Header closeButton>
+                    <Modal.Title>รายงานคะแนน</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <GradeReport classId={classId} />
+                </Modal.Body>
+            </Modal>
         </>
     );
 }

@@ -5,9 +5,9 @@ import { storage, db } from '../../firebase';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { doc, getDoc, collection, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { Navbar, Nav, NavDropdown, Button, Offcanvas, Container, Image, Spinner, Badge, ListGroup } from 'react-bootstrap';
-import { FaUser, FaSignOutAlt, FaHome, FaBook, FaCog, FaChalkboardTeacher, FaChevronRight, FaSearch, FaBell, FaGraduationCap, FaUserGraduate, FaCalendarAlt, FaTasks, FaPlus } from 'react-icons/fa';
+import { FaUser, FaSignOutAlt, FaHome, FaBook, FaCog, FaChalkboardTeacher, FaChevronRight, FaSearch, FaBell, FaGraduationCap, FaCalendarAlt, FaTasks, FaPlus } from 'react-icons/fa';
 
-function Header() {
+function StudentHeader() {
     const { logOut, user } = useUserAuth();
     const navigate = useNavigate();
 
@@ -51,25 +51,26 @@ function Header() {
                 console.error("Error fetching student data: ", error);
             }
         }
-    };
+    }
 
     const fetchEnrolledClasses = async () => {
         if (user && user.uid) {
             try {
-                const enrollmentsQuery = query(
+                const q = query(
                     collection(db, "ClassEnrollments"),
                     where('studentId', '==', user.uid)
                 );
-                const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
-                const classIds = enrollmentsSnapshot.docs.map(doc => doc.data().classId);
+                const querySnapshot = await getDocs(q);
+                const classIds = querySnapshot.docs.map(doc => doc.data().classId);
 
                 if (classIds.length > 0) {
                     const classroomsQuery = query(
                         collection(db, "Classrooms"),
-                        where('ClassId', 'in', classIds)
+                        where('ClassId', 'in', classIds),
+                        orderBy('ClassName', 'asc')
                     );
                     const classroomsSnapshot = await getDocs(classroomsQuery);
-                    const classroomsList = classroomsSnapshot.docs.map(doc => ({
+                    let classroomsList = classroomsSnapshot.docs.map(doc => ({
                         id: doc.id,
                         ...doc.data()
                     }));
@@ -81,24 +82,10 @@ function Header() {
         }
     };
 
+    // Placeholder for notification fetching (you can implement this later)
     const fetchNotifications = async () => {
-        if (user && user.uid) {
-            try {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                
-                const notificationsQuery = query(
-                    collection(db, "Notifications"),
-                    where('studentId', '==', user.uid),
-                    where('createdAt', '>=', today),
-                    where('read', '==', false)
-                );
-                const notificationsSnapshot = await getDocs(notificationsQuery);
-                setNotificationCount(notificationsSnapshot.size);
-            } catch (error) {
-                console.error("Error fetching notifications: ", error);
-            }
-        }
+        // Implement notification fetching logic here
+        setNotificationCount(3); // Placeholder value
     };
 
     useEffect(() => {
@@ -121,10 +108,7 @@ function Header() {
         return (
             <Navbar bg="primary" variant="dark" expand="lg" className="py-3">
                 <Container>
-                    <Navbar.Brand href="/student/home" className="fs-4">
-                        <FaUserGraduate className="me-2" />
-                        LearningSystem
-                    </Navbar.Brand>
+                    <Navbar.Brand href="/student/home" className="fs-4">LearnMate</Navbar.Brand>
                     <Spinner animation="border" variant="light" />
                 </Container>
             </Navbar>
@@ -136,38 +120,28 @@ function Header() {
             <Navbar bg="primary" variant="dark" expand="lg" className="py-2 shadow-sm">
                 <Container fluid>
                     <Navbar.Brand as={Link} to="/student/home" className="d-flex align-items-center">
-                        <FaUserGraduate size={30} className="me-2" />
-                        <span className="fs-4 fw-bold">LearningSystem</span>
+                        <Image src="https://firebasestorage.googleapis.com/v0/b/arproject-b2e7b.appspot.com/o/Logo%2Flearnmate-high-resolution-logo-white-transparent.png?alt=media&token=81946893-7f22-489c-9477-fcf7c20f6ec8" height="30" className="me-2" alt="LearnMate Logo" />
                     </Navbar.Brand>
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                     <Navbar.Collapse id="basic-navbar-nav">
                         <Nav className="ms-auto align-items-center">
-                            <Nav.Link as={Link} to="/student/home" className="mx-2 d-flex align-items-center">
-                                <FaHome className="me-2" /> หน้าหลัก
+                            <Nav.Link as={Link} to="/student/home" className="mx-2">
+                                <FaHome className="me-1" /> หน้าหลัก
                             </Nav.Link>
-                            <NavDropdown 
-                                title={<span className="d-flex align-items-center"><FaChalkboardTeacher className="me-2" /> ห้องเรียน</span>} 
-                                id="classrooms-dropdown" 
-                                className="mx-2"
-                            >
+                            <NavDropdown title={<span><FaChalkboardTeacher className="me-1" /> ห้องเรียน</span>} id="classrooms-dropdown" className="mx-2">
                                 {enrolledClasses.map(classroom => (
                                     <NavDropdown.Item key={classroom.id} as={Link} to={`/student/classroom/${classroom.id}`}>
-                                        <FaBook className="me-2" /> {classroom.ClassName}
+                                        {classroom.ClassName}
                                     </NavDropdown.Item>
                                 ))}
                                 <NavDropdown.Divider />
                                 <NavDropdown.Item as={Link} to="/student/join-class">
-                                    <FaPlus className="me-2" /> เข้าร่วมห้องเรียน
+                                    <FaPlus className="me-1" /> เข้าร่วมห้องเรียน
                                 </NavDropdown.Item>
                             </NavDropdown>
-                            <Nav.Link as={Link} to="/student/assignments" className="mx-2 d-flex align-items-center">
-                                <FaTasks className="me-2" /> งานที่ได้รับมอบหมาย
-                            </Nav.Link>
-                            <Nav.Link as={Link} to="/student/calendar" className="mx-2 d-flex align-items-center">
-                                <FaCalendarAlt className="me-2" /> ปฏิทิน
-                            </Nav.Link>
+
                             <Nav.Link className="mx-2 position-relative">
-                                <FaBell size={20} />
+                                <FaBell />
                                 <Badge bg="danger" className="position-absolute top-0 start-100 translate-middle rounded-pill">
                                     {notificationCount}
                                 </Badge>
@@ -201,7 +175,7 @@ function Header() {
                 <Offcanvas.Body className="p-0">
                     {studentInfo ? (
                         <ListGroup variant="flush">
-                            <ListGroup.Item action as={Link} to="/student/profile">
+                            <ListGroup.Item action as={Link} to="/student/profile/edit">
                                 <FaCog className="me-2" /> ตั้งค่าโปรไฟล์
                             </ListGroup.Item>
                             <ListGroup.Item>
@@ -232,9 +206,6 @@ function Header() {
                                     </div>
                                 )}
                             </ListGroup.Item>
-                            <ListGroup.Item action as={Link} to="/student/grades">
-                                <FaGraduationCap className="me-2" /> ผลการเรียน
-                            </ListGroup.Item>
                             <ListGroup.Item action onClick={handleLogout} className="text-danger">
                                 <FaSignOutAlt className="me-2" /> ออกจากระบบ
                             </ListGroup.Item>
@@ -251,4 +222,4 @@ function Header() {
     );
 }
 
-export default Header;
+export default StudentHeader;

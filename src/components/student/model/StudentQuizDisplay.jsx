@@ -1,13 +1,11 @@
 import React from 'react';
 import { Card, Button } from 'react-bootstrap';
-import { FaClipboardList } from 'react-icons/fa';
+import { FaClipboardList, FaInfoCircle } from 'react-icons/fa';
 import { useNavigate, useParams } from 'react-router-dom';
 
 function StudentQuizDisplay({ quizzes, classId: propClassId }) {
     const navigate = useNavigate();
-    const { classId: paramClassId } = useParams(); // ใช้ useParams เพื่อรับ classId จาก URL
-
-    // ใช้ classId จาก props ถ้ามี ถ้าไม่มีให้ใช้จาก URL params
+    const { classId: paramClassId } = useParams();
     const classId = propClassId || paramClassId;
 
     const handleStartQuiz = (quizId) => {
@@ -17,6 +15,21 @@ function StudentQuizDisplay({ quizzes, classId: propClassId }) {
         }
         navigate(`/student/classroom/${classId}/quiz/${quizId}`);
     };
+
+    const EmptyQuizState = () => (
+        <Card className="text-center ">
+            <Card.Body className="py-5">
+                <FaInfoCircle size={64} className="mb-3 text-primary" />
+                <Card.Title>ยังไม่มีแบบทดสอบในห้องเรียนนี้</Card.Title>
+                <Card.Text>
+                    ครูผู้สอนยังไม่ได้สร้างแบบทดสอบสำหรับห้องเรียนนี้
+                    <br />
+                    คุณจะเห็นแบบทดสอบที่นี่เมื่อครูสร้างขึ้น
+                </Card.Text>
+
+            </Card.Body>
+        </Card>
+    );
 
     return (
         <Card className="shadow-sm">
@@ -33,7 +46,7 @@ function StudentQuizDisplay({ quizzes, classId: propClassId }) {
                                 <Button 
                                     variant="primary" 
                                     onClick={() => handleStartQuiz(quiz.id)}
-                                    disabled={!classId} // ปิดปุ่มถ้าไม่มี classId
+                                    disabled={!classId}
                                 >
                                     เริ่มทำแบบทดสอบ
                                 </Button>
@@ -41,7 +54,7 @@ function StudentQuizDisplay({ quizzes, classId: propClassId }) {
                         </Card>
                     ))
                 ) : (
-                    <p className="text-center text-muted">ยังไม่มีแบบทดสอบในห้องเรียนนี้</p>
+                    <EmptyQuizState />
                 )}
             </Card.Body>
         </Card>

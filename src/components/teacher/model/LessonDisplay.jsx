@@ -22,6 +22,7 @@ const LessonDisplay = ({ classId }) => {
         fileType: ''
     });
     const [error, setError] = useState(null);
+    const quillRef = React.useRef(null);
 
     const fetchLessons = useCallback(async () => {
         setLoading(true);
@@ -124,13 +125,13 @@ const LessonDisplay = ({ classId }) => {
             try {
                 const lessonRef = doc(db, "Lessons", lessonId);
                 const lessonDoc = await getDoc(lessonRef);
-                
+
                 if (!lessonDoc.exists()) {
                     throw new Error("Lesson not found");
                 }
-                
+
                 const lessonData = lessonDoc.data();
-                
+
                 // ลบไฟล์ (ถ้ามี)
                 if (lessonData.fileUrl) {
                     try {
@@ -142,11 +143,11 @@ const LessonDisplay = ({ classId }) => {
                         // ไม่ throw error ที่นี่ เพื่อให้สามารถลบเอกสารในฐานข้อมูลต่อไปได้
                     }
                 }
-                
+
                 // ลบเอกสารจากฐานข้อมูล
                 await deleteDoc(lessonRef);
                 console.log("Lesson document deleted successfully");
-                
+
                 fetchLessons(); // โหลดข้อมูลบทเรียนใหม่
             } catch (err) {
                 console.error("Error deleting lesson:", err);
@@ -166,7 +167,7 @@ const LessonDisplay = ({ classId }) => {
                 const newLessons = [...lessons];
                 const swapIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
                 [newLessons[currentIndex], newLessons[swapIndex]] = [newLessons[swapIndex], newLessons[currentIndex]];
-                
+
                 const batch = writeBatch(db);
                 newLessons.forEach((lesson, index) => {
                     const lessonRef = doc(db, "Lessons", lesson.id);
@@ -216,7 +217,7 @@ const LessonDisplay = ({ classId }) => {
         toolbar: [
             [{ 'header': [1, 2, false] }],
             ['bold', 'italic', 'underline', 'strike', 'blockquote'],
-            [{'list': 'ordered'}, {'list': 'bullet'}, {'indent': '-1'}, {'indent': '+1'}],
+            [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'indent': '-1' }, { 'indent': '+1' }],
             ['link', 'image'],
             ['clean']
         ],
@@ -244,14 +245,14 @@ const LessonDisplay = ({ classId }) => {
                         <ListGroup variant="flush">
                             {lessons.map((lesson, index) => (
                                 <ListGroup.Item key={lesson.id} className="d-flex justify-content-between align-items-center">
-                                    <div className="d-flex align-items-center">
+                                    <div className="d-flex align-items-center flex-grow-1">
                                         {renderFilePreview(lesson)}
-                                        <div className="ms-3">
+                                        <div className="ms-3 flex-grow-1">
                                             <strong>บทที่ {index + 1}: {lesson.title}</strong>
-                                            <div className="text-muted">{lesson.description}</div>
+                                            <div className="text-muted text-truncate" style={{ maxWidth: '300px' }}>{lesson.description}</div>
                                         </div>
                                     </div>
-                                    <div>
+                                    <div className="d-flex">
                                         <Button variant="outline-secondary" className="me-2" onClick={() => handleReorderLesson(lesson.id, 'up')} disabled={index === 0 || loading}>
                                             <FaArrowUp />
                                         </Button>
@@ -306,7 +307,8 @@ const LessonDisplay = ({ classId }) => {
                         </Form.Group>
                         <Form.Group className="mb-3">
                             <Form.Label>เนื้อหาบทเรียน</Form.Label>
-                            <ReactQuill 
+                            <ReactQuill
+                                ref={quillRef}
                                 theme="snow"
                                 value={formData.content}
                                 onChange={handleContentChange}

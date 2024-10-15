@@ -16,13 +16,12 @@ import ProtectedRoute from './auth/ProtectedRoute.jsx';
 import TeacherHeader from './components/teacher/Header.jsx';
 import StudentHeader from './components/student/Header.jsx';
 import ClassroomDetails from './components/teacher/ClassroomDetails.jsx';
-import LessonManagement from './components/teacher/LessonManagement.jsx';
 import ClassroomPost from './components/teacher/ClassroomPost.jsx';
 import StudentClassroomDetails from './components/student/StudentClassroomDetails.jsx';
-import QuizEditor from './components/teacher/model/QuizEditor.jsx';
-import QuizTaker from './components/teacher/model/QuizTaker.jsx';
-import QuizManagement from './components/teacher/QuizManagement.jsx';
+
 import StudentQuizTaker from './components/student/model/StudentQuizTaker.jsx';
+import TeacherProfileEdit from './components/teacher/TeacherProfileEdit';
+import StudentProfileEdit from './components/student/StudentProfileEdit';
 
 
 
@@ -66,23 +65,17 @@ const router = createBrowserRouter([
     element: <ProtectedRoute><ClassroomDetails /></ProtectedRoute>
   },  
   {
-    path:"/teacher/classroom/:classId/lessons",
-    element:<LessonManagement />
-  },{
     path:"/teacher/create-post",
     element: <ClassroomPost />
   },{
-    path:"/teacher/classroom/:classId/quiz/:quizId",
-    element:<QuizEditor />
-  },{
-    path:"/teacher/classroom/:classId/quiz/:quizId/take",
-    element:<QuizTaker />
-  },{
-    path:"/teacher/classroom/:classId/quiz",
-    element:<QuizManagement />
-  },{
     path: "/student/classroom/:classId/quiz/:quizId",
     element: <ProtectedRoute><StudentQuizTaker /></ProtectedRoute>,
+  },{
+    path: "/teacher/profile/edit",
+    element: <TeacherProfileEdit></TeacherProfileEdit> 
+  },{
+    path: "/student/profile/edit",
+    element: <StudentProfileEdit></StudentProfileEdit>
   }
 
 ]);

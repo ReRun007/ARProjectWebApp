@@ -7,6 +7,7 @@ import Header from './Header';
 import StudentPostDisplay from './model/StudentPostDisplay';
 import StudentLessonDisplay from './model/StudentLessonDisplay';
 import StudentQuizDisplay from './model/StudentQuizDisplay';
+import StudentAssignmentDisplay from './model/StudentAssignmentDisplay';
 
 function StudentClassroomDetails() {
     const { classId } = useParams();
@@ -90,10 +91,13 @@ function StudentClassroomDetails() {
                                 <StudentPostDisplay posts={posts} classId={classId} />
                             </Tab>
                             <Tab eventKey="lessons" title="บทเรียน">
-                                <StudentLessonDisplay lessons={lessons} />
+                                <StudentLessonDisplay lessons={lessons} classId={classId} />
                             </Tab>
                             <Tab eventKey="quizzes" title="แบบทดสอบ">
                                 <StudentQuizDisplay quizzes={quizzes || []} />
+                            </Tab>
+                            <Tab eventKey="assignments" title="งานที่มอบหมาย">
+                                <StudentAssignmentDisplay classId={classId} />
                             </Tab>
                         </Tabs>
                     </Col>

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserAuth } from '../../context/UserAuthContext';
-import { Button, Container, Row, Col, Card, Modal, Form, Spinner } from 'react-bootstrap';
+import { Button, Container, Row, Col, Card, Modal, Form, Spinner, Alert } from 'react-bootstrap';
 import { doc, getDoc, collection, setDoc, getDocs, query, where, orderBy } from 'firebase/firestore';
 import { db } from '../../firebase';
 import Header from './Header';
-import { FaChalkboardTeacher, FaPlus } from 'react-icons/fa';
+import EmptyClassroomState from './EmptyClassroomState';
+import { FaChalkboardTeacher, FaPlus, FaUsers, FaTasks } from 'react-icons/fa';
 
 function Home() {
     const { user } = useUserAuth();
@@ -16,6 +17,19 @@ function Home() {
     const [className, setClassName] = useState('');
     const [classDescription, setClassDescription] = useState('');
     const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            await fetchUserData();
+            await fetchClassrooms();
+            setTimeout(() => {
+                setLoading(false);
+            }, 1000);
+        };
+
+        loadData();
+    }, [user]);
 
     const fetchClassrooms = async () => {
         if (user && user.uid) {
@@ -35,7 +49,15 @@ function Home() {
                         );
                         const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
                         const studentCount = enrollmentsSnapshot.size;
-                        return { ...classroom, studentCount };
+
+                        const assignmentsQuery = query(
+                            collection(db, 'Assignments'),
+                            where('classId', '==', classroom.ClassId)
+                        );
+                        const assignmentsSnapshot = await getDocs(assignmentsQuery);
+                        const assignmentCount = assignmentsSnapshot.size;
+
+                        return { ...classroom, studentCount, assignmentCount };
                     })
                 );
                 setClassrooms(classroomsData);
@@ -58,8 +80,6 @@ function Home() {
             } catch (error) {
                 console.error("Error fetching teacher data: ", error);
             }
-        } else {
-            console.log("User is not logged in or user.uid is undefined.");
         }
     }
 
@@ -67,9 +87,7 @@ function Home() {
         let classId;
         let isUnique = false;
         while (!isUnique) {
-            // สุ่ม ClassId ในรูปแบบ XXX000
             classId = `${Math.random().toString(36).substring(2, 5).toUpperCase()}${Math.floor(100 + Math.random() * 900)}`;
-            // ตรวจสอบว่าซ้ำหรือไม่
             const q = query(collection(db, 'Classrooms'), where('ClassId', '==', classId));
             const querySnapshot = await getDocs(q);
             if (querySnapshot.empty) {
@@ -84,7 +102,7 @@ function Home() {
         const classId = await generateClassId();
 
         try {
-            const docRef = doc(db, 'Classrooms', classId); // ใช้ classId เป็น docID
+            const docRef = doc(db, 'Classrooms', classId);
             await setDoc(docRef, {
                 ClassId: classId,
                 ClassName: className,
@@ -94,54 +112,44 @@ function Home() {
             setShowModal(false);
             setClassName('');
             setClassDescription('');
-            fetchClassrooms(); // ดึงข้อมูลห้องเรียนใหม่หลังจากเพิ่มห้องเรียน
+            fetchClassrooms();
         } catch (err) {
             console.error("Error adding classroom: ", err);
         }
     };
 
-    useEffect(() => {
-        const loadData = async () => {
-            setLoading(true);
-            await fetchUserData();
-            await fetchClassrooms();
-            // จำลองการโหลดข้อมูลให้ใช้เวลาอย่างน้อย 1 วินาที
-            setTimeout(() => {
-                setLoading(false);
-            }, 1000);
-        };
-
-        loadData();
-    }, [user]);
-
     if (loading) {
         return (
-            <div className="d-flex justify-content-center align-items-center" style={{ height: '100vh' }}>
+            <Container className="d-flex justify-content-center align-items-center vh-100">
                 <Spinner animation="border" role="status" variant="primary">
                     <span className="visually-hidden">Loading...</span>
                 </Spinner>
-            </div>
+            </Container>
         );
     }
 
     return (
-        <div className="bg-light min-vh-100">
+        <>
             <Header />
             <Container className="py-5">
                 <h1 className="text-center mb-5">ยินดีต้อนรับ, {teacherInfo?.Username || 'คุณครู'}!</h1>
 
-                <div className="d-flex justify-content-between align-items-center mb-4">
-                    <h2 className="m-0">ห้องเรียนของฉัน</h2>
-                    <Button variant="primary" size="lg" className="rounded-pill" onClick={() => setShowModal(true)}>
-                        <FaPlus className="me-2" /> เพิ่มห้องเรียน
-                    </Button>
-                </div>
+                <Row className="mb-4 align-items-center">
+                    <Col>
+                        <h2 className="m-0">ห้องเรียนของฉัน</h2>
+                    </Col>
+                    <Col xs="auto">
+                        <Button variant="primary" size="lg" className="rounded-pill" onClick={() => setShowModal(true)}>
+                            <FaPlus className="me-2" /> เพิ่มห้องเรียน
+                        </Button>
+                    </Col>
+                </Row>
 
                 {classrooms.length > 0 ? (
                     <Row xs={1} md={2} lg={3} xl={4} className="g-4">
                         {classrooms.map((classroom) => (
                             <Col key={classroom.ClassId}>
-                                <Card className="h-100 shadow-sm hover-shadow transition">
+                                <Card className="h-100 shadow-sm">
                                     <Card.Body className="d-flex flex-column">
                                         <div className="text-center mb-3">
                                             <FaChalkboardTeacher size={50} className="text-primary" />
@@ -149,7 +157,8 @@ function Home() {
                                         <Card.Title className="text-center">{classroom.ClassName}</Card.Title>
                                         <Card.Text className="text-muted text-center">
                                             {classroom.ClassDescription || 'ไม่มีรายละเอียด'}<br />
-                                            จำนวนนักเรียน: {classroom.studentCount} คน
+                                            <FaUsers className="me-1" /> จำนวนนักเรียน: {classroom.studentCount} คน<br />
+                                            <FaTasks className="me-1" /> จำนวนงาน: {classroom.assignmentCount} งาน
                                         </Card.Text>
                                         <Button
                                             variant="outline-primary"
@@ -167,7 +176,6 @@ function Home() {
                     <EmptyClassroomState onAddClassroom={() => setShowModal(true)} />
                 )}
 
-                {/* Modal สำหรับเพิ่มห้องเรียน */}
                 <Modal show={showModal} onHide={() => setShowModal(false)}>
                     <Modal.Header closeButton>
                         <Modal.Title>เพิ่มห้องเรียนใหม่</Modal.Title>
@@ -201,7 +209,7 @@ function Home() {
                     </Modal.Body>
                 </Modal>
             </Container>
-        </div>
+        </>
     );
 }
 
