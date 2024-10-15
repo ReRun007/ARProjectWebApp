@@ -227,7 +227,7 @@ function StudentHome() {
                                                         <Card.Text>{classroom.ClassDescription}</Card.Text>
                                                     </Card.Body>
                                                     <Card.Footer>
-                                                        <Button variant="outline-primary" href={`/student/classroom/${classroom.id}`}>
+                                                        <Button variant="outline-primary" as={Link} to={`/student/classroom/${classroom.id}`}>
                                                             เข้าสู่ห้องเรียน
                                                         </Button>
                                                     </Card.Footer>
