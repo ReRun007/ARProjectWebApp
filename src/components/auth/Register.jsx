@@ -40,12 +40,16 @@ function Register() {
         };
 
         const checkAuthStatus = async () => {
-            if (user) {
-                const userType = await checkUserType(user.uid);
-                if (userType === 'teacher') {
-                    navigate("/teacher/home");
-                } else if (userType === 'student') {
-                    navigate("/student/home");
+            if (user && user.uid) {
+                try {
+                    const userType = await checkUserType(user.uid);
+                    if (userType === 'teacher') {
+                        navigate("/teacher/home");
+                    } else if (userType === 'student') {
+                        navigate("/student/home");
+                    }
+                } catch (error) {
+                    console.error("Error checking user type:", error);
                 }
             }
         };

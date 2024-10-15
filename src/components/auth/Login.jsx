@@ -10,36 +10,51 @@ function Login() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
-    const { logIn, user } = useUserAuth();  
+    const { logIn, user } = useUserAuth();
     let navigate = useNavigate();
 
     useEffect(() => {
         const checkAuthStatus = async () => {
-            if (user) {
-                const userType = await checkUserType(user.uid);
-                if (userType === 'teacher') {
-                    navigate("/teacher/home");
-                } else if (userType === 'student') {
-                    navigate("/student/home");
+            if (user && user.uid) {
+                try {
+                    const userType = await checkUserType(user.uid);
+                    if (userType === 'teacher') {
+                        navigate("/teacher/home");
+                    } else if (userType === 'student') {
+                        navigate("/student/home");
+                    }
+                } catch (error) {
+                    console.error("Error checking user type:", error);
                 }
             }
         };
-        checkAuthStatus();
+
+        // เพิ่มการตรวจสอบว่า user ไม่ใช่ null หรือ undefined
+        if (user !== null && user !== undefined) {
+            checkAuthStatus();
+        }
     }, [user, navigate]);
 
     const checkUserType = async (uid) => {
-        const teacherDocRef = doc(db, "Teachers", uid);
-        const studentDocRef = doc(db, "Students", uid);
-        
-        const teacherDocSnap = await getDoc(teacherDocRef);
-        const studentDocSnap = await getDoc(studentDocRef);
+        try {
+            const teacherDocRef = doc(db, "Teachers", uid);
+            const studentDocRef = doc(db, "Students", uid);
 
-        if (teacherDocSnap.exists()) {
-            return 'teacher';
-        } else if (studentDocSnap.exists()) {
-            return 'student';
+            const [teacherDocSnap, studentDocSnap] = await Promise.all([
+                getDoc(teacherDocRef),
+                getDoc(studentDocRef)
+            ]);
+
+            if (teacherDocSnap.exists()) {
+                return 'teacher';
+            } else if (studentDocSnap.exists()) {
+                return 'student';
+            }
+            return null;
+        } catch (error) {
+            console.error("Error in checkUserType:", error);
+            throw error; // ส่งต่อข้อผิดพลาดเพื่อให้สามารถจัดการได้ใน useEffect
         }
-        return null;
     };
 
     const handleSubmit = async (e) => {
@@ -48,7 +63,7 @@ function Login() {
         try {
             const userCredential = await logIn(email, password);
             const user = userCredential.user;
-            
+
             const userType = await checkUserType(user.uid);
 
             if (userType === 'teacher') {
@@ -75,25 +90,25 @@ function Login() {
                     <Card className="shadow border-0">
                         <Card.Body className="p-5">
                             <div className="text-center mb-4">
-                                <Image 
-                                    src="https://firebasestorage.googleapis.com/v0/b/arproject-b2e7b.appspot.com/o/Logo%2Flogo-no-background.png?alt=media&token=49d57db2-d023-490f-a923-8d0760b121d5" 
-                                    alt="LearnMate Logo" 
-                                    fluid 
+                                <Image
+                                    src="https://firebasestorage.googleapis.com/v0/b/arproject-b2e7b.appspot.com/o/Logo%2Flogo-no-background.png?alt=media&token=49d57db2-d023-490f-a923-8d0760b121d5"
+                                    alt="LearnMate Logo"
+                                    fluid
                                     className="mb-4"
                                     style={{ maxWidth: '200px' }}
                                 />
                                 <h2 className="text-primary">เข้าสู่ระบบ</h2>
                             </div>
-                            
+
                             {error && <Alert variant='danger'>{error}</Alert>}
 
                             <Form onSubmit={handleSubmit}>
                                 <Form.Group className="mb-3" controlId="formBasicEmail">
                                     <Form.Label>
-                                        <FaEnvelope className="me-2 text-primary"/>
+                                        <FaEnvelope className="me-2 text-primary" />
                                         อีเมล
                                     </Form.Label>
-                                    <Form.Control 
+                                    <Form.Control
                                         type="email"
                                         placeholder="กรอกอีเมล"
                                         onChange={(e) => setEmail(e.target.value)}
@@ -102,10 +117,10 @@ function Login() {
 
                                 <Form.Group className="mb-4" controlId="formBasicPassword">
                                     <Form.Label>
-                                        <FaLock className="me-2 text-primary"/>
+                                        <FaLock className="me-2 text-primary" />
                                         รหัสผ่าน
                                     </Form.Label>
-                                    <Form.Control 
+                                    <Form.Control
                                         type="password"
                                         placeholder="กรอกรหัสผ่าน"
                                         onChange={(e) => setPassword(e.target.value)}
