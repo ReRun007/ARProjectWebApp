@@ -16,7 +16,6 @@ function StudentHeader() {
     const [imageURL, setImageURL] = useState(null);
     const [enrolledClasses, setEnrolledClasses] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [notificationCount, setNotificationCount] = useState(0);
 
     const handleClose = () => setShow(false);
     const handleShow = () => setShow(true);
@@ -82,18 +81,13 @@ function StudentHeader() {
         }
     };
 
-    // Placeholder for notification fetching (you can implement this later)
-    const fetchNotifications = async () => {
-        // Implement notification fetching logic here
-        setNotificationCount(3); // Placeholder value
-    };
+
 
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
             await fetchStudentInfo();
             await fetchEnrolledClasses();
-            await fetchNotifications();
             setLoading(false);
         };
 
@@ -134,18 +128,10 @@ function StudentHeader() {
                                         {classroom.ClassName}
                                     </NavDropdown.Item>
                                 ))}
-                                <NavDropdown.Divider />
-                                <NavDropdown.Item as={Link} to="/student/join-class">
-                                    <FaPlus className="me-1" /> เข้าร่วมห้องเรียน
-                                </NavDropdown.Item>
+
                             </NavDropdown>
 
-                            <Nav.Link className="mx-2 position-relative">
-                                <FaBell />
-                                <Badge bg="danger" className="position-absolute top-0 start-100 translate-middle rounded-pill">
-                                    {notificationCount}
-                                </Badge>
-                            </Nav.Link>
+
                             <Nav.Item className="mx-2">
                                 <Button variant="outline-light" onClick={handleShow} className="d-flex align-items-center">
                                     {imageURL ? (

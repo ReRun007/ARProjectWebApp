@@ -126,7 +126,7 @@ const AttendanceReport = ({ classId }) => {
           <Card className="mb-4">
             <Card.Body>
               <Card.Title>เวลาเฉลี่ยในการดูบทเรียน</Card.Title>
-              <Card.Text className="display-4">{overviewData.averageLessonDuration.toFixed(2)} นาที</Card.Text>
+              <Card.Text className="display-4">{(overviewData.averageLessonDuration/60).toFixed(2)} นาที</Card.Text>
             </Card.Body>
           </Card>
         </Col>
@@ -167,7 +167,7 @@ const AttendanceReport = ({ classId }) => {
                   <td>{record.date.toDate().toLocaleString()}</td>
                   <td>{record.activityType === 'lesson_view' ? 'เข้าชมบทเรียน' : 'ทำแบบทดสอบ'}</td>
                   <td>{studentNames[record.studentId] || 'ไม่พบข้อมูล'}</td>
-                  <td>{record.duration ? record.duration.toFixed(2) : '-'}</td>
+                  <td>{record.duration ? (record.duration/60).toFixed(2) : '-'}</td>
                 </tr>
               ))}
             </tbody>

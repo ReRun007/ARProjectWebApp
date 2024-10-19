@@ -117,12 +117,6 @@ function Header({ teacherInfo: propTeacherInfo, classrooms: propClassrooms }) {
                                     </NavDropdown.Item>
                                 ))}
                             </NavDropdown>
-                            <Nav.Link className="mx-2 position-relative">
-                                <FaBell />
-                                <Badge bg="danger" className="position-absolute top-0 start-100 translate-middle rounded-pill">
-                                    3
-                                </Badge>
-                            </Nav.Link>
                             <Nav.Item className="mx-2">
                                 <Button variant="outline-light" onClick={handleShow} className="d-flex align-items-center">
                                     {imageURL ? (

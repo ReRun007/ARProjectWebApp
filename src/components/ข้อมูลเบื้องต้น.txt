@@ -1,110 +1,169 @@
 ฐานข้อมูลตอนนี้
-Firebase Database Structure:
+// Firebase Database Structure
 
--Assignments
-  - classId: string
-  - createdAt: timestamp
-  - description: string
-  - dueDateTime: string 
-  - fileUrl: string
-  - id: string
-  - points: string
-  - title: string
+// Assignments
+assignments: {
+  [assignmentId]: {
+    classId: string,
+    createdAt: timestamp,
+    description: string,
+    dueDateTime: string,
+    fileUrl: string,
+    points: string,
+    title: string
+  }
+}
 
--Attendances
-  - activityId: string
-  - activityType: string
-  - classId: string
-  - date: timestamp
-  - duration: number
-  - studentId: string
+// Attendances
+attendances: {
+  [attendanceId]: {
+    activityId: string,
+    activityType: string,
+    classId: string,
+    date: timestamp,
+    duration: number,
+    studentId: string
+  }
+}
 
+// Classrooms
+classrooms: {
+  [classId]: {
+    ClassId: string,
+    ClassName: string,
+    ClassDescription: string,
+    TeachersID: string // reference to /teachers/{uid}
+  }
+}
 
+// Teachers
+{
+  [uid]: {
+    BirthDate: string,
+    Email: string,
+    FirstName: string,
+    Gender: string,
+    Institution: string,
+    LastName: string,
+    URLImage: string, // URL to profile image in Firebase Storage
+    UserType: string,
+    Username: string
+  }
+}
 
-- Classrooms
-  - ClassId: string
-  - ClassName: string
-  - ClassDescription: string
-  - TeachersID: string (reference to /Teachers/{uid})
+// Students
+{
+  [uid]: {
+    BirthDate: string,
+    Email: string,
+    FirstName: string,
+    Gender: string,
+    Institution: string,
+    LastName: string,
+    URLImage: string, // path to profile image in Firebase Storage
+    UserType: string,
+    Username: string
+  }
+}
 
-- Teachers
-  - uid: string
-  - FirstName: string
-  - LastName: string
-  - Username: string
-  - Email: string
-  - URLImage: string (path to profile image in Firebase Storage)
+// ClassEnrollments
+classEnrollments: {
+  [enrollmentId]: {
+    classId: string, // reference to classrooms
+    studentId: string, // reference to students
+    enrollmentDate: timestamp
+  }
+}
 
-- Students
-  - uid: string
-  - FirstName: string
-  - LastName: string
-  - Username: string
-  - Email: string
-  - URLImage: string (path to profile image in Firebase Storage)
+// Posts
+posts: {
+  [postId]: {
+    classId: string, // reference to classrooms
+    content: string,
+    createdAt: timestamp,
+    createdBy: string, // reference to teachers or students
+    fileUrl: string, // optional
+    fileName: string // optional
+  }
+}
 
-- ClassEnrollments
-  - classId: string (reference to Classrooms)
-  - studentId: string (reference to Students)
-  - enrollmentDate: timestamp
+// Comments
+comments: {
+  [commentId]: {
+    postId: string, // reference to posts
+    classId: string, // reference to classrooms
+    content: string,
+    createdAt: timestamp,
+    createdBy: string // reference to students or teachers
+  }
+}
 
-- Posts
-  - id: string
-  - classId: string (reference to Classrooms)
-  - content: string
-  - createdAt: timestamp
-  - createdBy: string (reference to Teachers or Students)
-  - fileUrl: string (optional)
-  - fileName: string (optional)
+// Lessons
+lessons: {
+  [lessonId]: {
+    classId: string, // reference to classrooms
+    title: string,
+    description: string,
+    content: string,
+    order: number,
+    fileUrl: string, // optional
+    fileType: string // optional
+  }
+}
 
-- Comments
-  - id: string
-  - postId: string (reference to Posts)
-  - classId: string (reference to Classrooms)
-  - content: string
-  - createdAt: timestamp
-  - createdBy: string (reference to Students or Teachers)
+// Quizzes
+quizzes: {
+  [quizId]: {
+    id: string,
+    order: number, //ลำดับ
+    classId: string, // reference to classrooms
+    createdAt: timestamp,
+    title: string,
+    description: string,
+    timeLimit: number, // in minutes
+    questions: [
+      {
+        text: string,
+        image: string, // optional
+        options: [
+          {
+            text: string,
+            image: string // optional
+          }
+        ],
+        correctAnswer: number
+      }
+    ]
+  }
+}
 
-- Lessons
-  - id: string
-  - classId: string (reference to Classrooms)
-  - title: string
-  - description: string
-  - content: string
-  - order: number
-  - fileUrl: string (optional)
-  - fileType: string (optional)
+// QuizResults
+quizResults: {
+  [quizId_userId]: {
+    quizId: string, // reference to quizzes
+    userId: string, // reference to students
+    score: number,
+    totalQuestions: number,
+    submittedAt: timestamp,
+    answers: {
+      [questionIndex]: number // selected option index
+    }
+  }
+}
 
-- Quizzes
-  - id: string
-  - classId: string (reference to Classrooms)
-  - title: string
-  - description: string
-  - questions: array of objects
-    - text: string
-    - image: string (optional)
-    - options: array of objects
-      - text: string
-      - image: string (optional)
-    - correctAnswer: number
-
-- QuizResults
-  - id: string (format: {quizId}_{userId})
-  - quizId: string (reference to Quizzes)
-  - userId: string (reference to Students)
-  - score: number
-  - totalQuestions: number
-  - completedAt: timestamp
-
-- Submissions
-  - assignmentId: string
-  - classId: string
-  - feedback: string
-  - fileName: string
-  - fileUrl: string
-  - grade: number
-  - studentId: string
-  - submittedAt: timestamp
+// Submissions
+submissions: {
+  [submissionId]: {
+    assignmentId: string,
+    classId: string,
+    feedback: string,
+    fileName: string,
+    fileUrl: string,
+    grade: number,
+    studentId: string,
+    submittedAt: timestamp
+  }
+}
 
 
 ==========================================================================

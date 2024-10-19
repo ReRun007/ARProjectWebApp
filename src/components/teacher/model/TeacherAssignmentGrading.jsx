@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Modal, Form, Alert, Dropdown, Spinner } from 'react-bootstrap';
+import { Card, Button, Table, Modal, Form, Alert, Dropdown, Spinner, Badge,Image } from 'react-bootstrap';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { FaDownload, FaEdit, FaClipboardList, FaExclamationTriangle } from 'react-icons/fa';
+import { FaDownload, FaEdit, FaClipboardList, FaFile, FaInfoCircle, FaUndoAlt,FaEye } from 'react-icons/fa';
 
 
 function TeacherAssignmentGrading({ classId }) {
@@ -17,6 +17,8 @@ function TeacherAssignmentGrading({ classId }) {
     const [error, setError] = useState(null);
     const [success, setSuccess] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [showSubmissionModal, setShowSubmissionModal] = useState(false);
+    const [selectedSubmissionFile, setSelectedSubmissionFile] = useState(null);
 
     useEffect(() => {
         fetchAssignments();
@@ -121,18 +123,21 @@ function TeacherAssignmentGrading({ classId }) {
     const handleGradeSubmit = async (e) => {
         e.preventDefault();
         try {
-            const maxPoints = selectedAssignment.points;
             const gradeNumber = Number(grade);
 
-            if (isNaN(gradeNumber) || gradeNumber < 0 || gradeNumber > maxPoints) {
-                setError(`Please enter a valid grade between 0 and ${maxPoints}.`);
+            if (isNaN(gradeNumber) || gradeNumber < 0 || gradeNumber > selectedAssignment.points) {
+                setError(`Please enter a valid grade between 0 and ${selectedAssignment.points}.`);
                 return;
             }
 
             await updateDoc(doc(db, "Submissions", selectedSubmission.id), {
                 grade: gradeNumber,
-                feedback: feedback
+                feedback: feedback,
+                status: 'graded'  // อัพเดทสถานะเป็น 'graded'
             });
+
+            console.log("Submission graded:", selectedSubmission.id, { grade: gradeNumber, feedback, status: 'graded' });
+
             setSuccess("Grade and feedback submitted successfully!");
             fetchSubmissions(selectedAssignment.id);
             handleCloseGradingModal();
@@ -154,26 +159,121 @@ function TeacherAssignmentGrading({ classId }) {
         </Card>
     );
 
-    const getSubmissionStatus = (studentId) => {
-        const submission = submissions.find(s => s.studentId === studentId);
-        if (submission) {
-            const submittedDate = new Date(submission.submittedAt.toDate());
-            const dueDate = new Date(selectedAssignment.dueDateTime);
-            if (submission.grade !== undefined) {
-                if (submittedDate > dueDate) {
-                    return <span className="text-warning">ให้คะแนนแล้ว(ส่งงานสาย)</span>;
-                }
-                return <span className="text-success">ให้คะแนนแล้ว</span>;
+    const renderSubmissionDetails = (submission) => {
+        if (!submission) return null;
+        return (
+            <>
+                {submission.fileName && (
+                    <div>
+                        <FaFile className="me-2" />
+                        <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer">
+                            {submission.fileName}
+                        </a>
+                    </div>
+                )}
+                {submission.submissionText && (
+                    <div>
+                        <FaInfoCircle className="me-2" />
+                        <small>{submission.submissionText}</small>
+                    </div>
+                )}
+            </>
+        );
+    };
+
+    const handleShowSubmission = (submission) => {
+        setSelectedSubmissionFile(submission.fileUrl);
+        setShowSubmissionModal(true);
+    };
+
+    const handleCloseSubmissionModal = () => {
+        setShowSubmissionModal(false);
+        setSelectedSubmissionFile(null);
+    };
+
+    const getFileExtension = (filename) => {
+        const cleanFilename = filename.split('?')[0]; // ตัด query string ออก
+        return cleanFilename.slice((cleanFilename.lastIndexOf(".") - 1 >>> 0) + 2).toLowerCase();
+    };
+    
+
+    const renderSubmissionFile = () => {
+        if (!selectedSubmissionFile) return null;
+
+        const fileExtension = getFileExtension(selectedSubmissionFile);
+
+        if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExtension)) {
+            return (
+                <Image src={selectedSubmissionFile} fluid />
+            );
+        } else if (fileExtension === 'pdf') {
+            return (
+                <iframe
+                    src={`${selectedSubmissionFile}#toolbar=0`}
+                    width="100%"
+                    height="500px"
+                    style={{ border: 'none' }}
+                />
+            );
+        } else {
+            return (
+                <div>
+                    <p>{fileExtension}</p>
+                    <p>{selectedSubmissionFile}</p>
+                    <p>This file type cannot be previewed.</p>
+                    <a href={selectedSubmissionFile} target="_blank" rel="noopener noreferrer">
+                        Download File
+                    </a>
+                </div>
+            );
+        }
+    };
+
+    const handleReturnAssignment = async (submission) => {
+        try {
+            await updateDoc(doc(db, "Submissions", submission.id), {
+                status: 'returned',
+                grade: null,
+                feedback: 'งานถูกส่งคืนเพื่อแก้ไข'
+            });
+
+            console.log("Submission returned:", submission.id, { status: 'returned', grade: null, feedback: 'งานถูกส่งคืนเพื่อแก้ไข' });
+
+            setSuccess("งานถูกส่งคืนให้นักเรียนแก้ไขแล้ว");
+            fetchSubmissions(selectedAssignment.id);
+        } catch (error) {
+            console.error("Error returning assignment:", error);
+            setError("เกิดข้อผิดพลาดในการส่งคืนงาน กรุณาลองอีกครั้ง");
+        }
+    };
+
+    const getSubmissionStatus = (submission) => {
+        if (!submission) {
+            if (new Date() > new Date(selectedAssignment.dueDateTime)) {
+                return <Badge bg="danger">เลยกำหนดส่ง</Badge>;
             }
+            return <Badge bg="warning">ยังไม่ส่ง</Badge>;
+        }
+
+        const submittedDate = submission.submittedAt.toDate();
+        const dueDate = new Date(selectedAssignment.dueDateTime);
+
+        if (submission.status === 'returned') {
+            return <Badge bg="info">ส่งคืนเพื่อแก้ไข</Badge>;
+        }
+
+        if (submission.status === 'graded') {
             if (submittedDate > dueDate) {
-                return <span className="text-warning">ส่งงานสาย</span>;
+                return <Badge bg="warning">ให้คะแนนแล้ว (ส่งงานสาย)</Badge>;
             }
-            return <span className="text-info">ส่งแล้ว</span>;
+            return <Badge bg="success">ให้คะแนนแล้ว</Badge>;
         }
-        if (new Date() > new Date(selectedAssignment.dueDateTime)) {
-            return <span className="text-danger">เลยกำหนดส่ง</span>;
+
+        if (submittedDate > dueDate) {
+            return <Badge bg="warning">ส่งงานสาย</Badge>;
         }
-        return <span className="text-warning">ยังไม่ส่ง</span>;
+
+        return <Badge bg="primary">ส่งแล้ว</Badge>;
     };
 
 
@@ -206,7 +306,7 @@ function TeacherAssignmentGrading({ classId }) {
                             <tr>
                                 <th>นักเรียน</th>
                                 <th>สถานะ</th>
-                                <th>ไฟล์งาน</th>
+                                <th>รายละเอียดการส่งงาน</th>
                                 <th>คะแนน</th>
                                 <th>การดำเนินการ</th>
                             </tr>
@@ -217,25 +317,31 @@ function TeacherAssignmentGrading({ classId }) {
                                 return (
                                     <tr key={studentId}>
                                         <td>{studentName}</td>
-                                        <td>{getSubmissionStatus(studentId)}</td>
-
+                                        <td>{getSubmissionStatus(submission)}</td>
                                         <td>
+                                            {renderSubmissionDetails(submission)}
                                             {submission && (
-                                                <>
-                                                    <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer">
-                                                        <FaDownload /> {submission.fileName}
-                                                    </a>
-                                                    <br />
-                                                    <small>ส่งเมื่อ: {submission.submittedAt.toDate().toLocaleString()}</small>
-                                                </>
+                                                <small className="d-block">
+                                                    ส่งเมื่อ: {submission.submittedAt.toDate().toLocaleString()}
+                                                </small>
                                             )}
                                         </td>
                                         <td>{submission?.grade !== undefined ? `${submission.grade}/${selectedAssignment.points}` : '-'}</td>
                                         <td>
                                             {submission && (
-                                                <Button variant="primary" onClick={() => handleShowGradingModal(submission)}>
-                                                    <FaEdit /> ให้คะแนน
-                                                </Button>
+                                                <>
+                                                    <Button variant="info" onClick={() => handleShowSubmission(submission)} className="me-2">
+                                                        <FaEye /> ดูงาน
+                                                    </Button>
+                                                    <Button variant="primary" onClick={() => handleShowGradingModal(submission)} className="me-2">
+                                                        <FaEdit /> ให้คะแนน
+                                                    </Button>
+                                                    {(submission.grade === undefined || submission.grade === null) && (
+                                                        <Button variant="warning" onClick={() => handleReturnAssignment(submission)}>
+                                                            <FaUndoAlt /> ส่งคืน
+                                                        </Button>
+                                                    )}
+                                                </>
                                             )}
                                         </td>
                                     </tr>
@@ -276,6 +382,15 @@ function TeacherAssignmentGrading({ classId }) {
                             บันทึกคะแนน
                         </Button>
                     </Form>
+                </Modal.Body>
+            </Modal>
+
+            <Modal show={showSubmissionModal} onHide={handleCloseSubmissionModal} size="lg">
+                <Modal.Header closeButton>
+                    <Modal.Title>ดูงานที่ส่ง</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    {renderSubmissionFile()}
                 </Modal.Body>
             </Modal>
         </Card>

@@ -3,9 +3,9 @@ import { useParams } from 'react-router-dom';
 import Header from './Header';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { db, storage } from '../../firebase';
-import { doc, getDoc, collection, query, where, getDocs, deleteDoc, orderBy } from 'firebase/firestore';
-import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Alert, Badge, Nav } from 'react-bootstrap';
-import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey, FaTasks, FaGraduationCap, FaCalendarCheck } from 'react-icons/fa';
+import { doc, getDoc, collection, query, where, getDocs, deleteDoc, orderBy, updateDoc } from 'firebase/firestore';
+import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Alert, Badge, Nav, Form } from 'react-bootstrap';
+import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey, FaTasks, FaGraduationCap, FaCalendarCheck, FaEdit } from 'react-icons/fa';
 
 import PostManagement from './model/PostManagement';
 import StudentListModal from './model/StudentListModal';
@@ -34,6 +34,9 @@ function ClassroomDetails() {
     const [showGradeReport, setShowGradeReport] = useState(false);
     const [activeTab, setActiveTab] = useState('posts');
     const [posts, setPosts] = useState([]);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editedClassroom, setEditedClassroom] = useState({ ClassName: '', ClassDescription: '' });
+
 
 
 
@@ -54,58 +57,8 @@ function ClassroomDetails() {
         }
     };
 
-    const handleFileChange = (e) => {
-        if (e.target.files[0]) {
-            setFile(e.target.files[0]);
-            if (e.target.files[0].type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setPreviewUrl(reader.result);
-                };
-                reader.readAsDataURL(e.target.files[0]);
-            } else {
-                setPreviewUrl(null);
-            }
-        } else {
-            setFile(null);
-            setPreviewUrl(null);
-        }
-    };
 
-    const handlePostSubmit = async (e) => {
-        e.preventDefault();
-        if (newPost.trim() === '') return;
 
-        try {
-            let fileUrl = '';
-            let fileName = '';
-            if (file) {
-                const storageRef = ref(storage, `User/${user.email}/Post/${file.name}`);
-                await uploadBytes(storageRef, file);
-                fileUrl = await getDownloadURL(storageRef);
-                fileName = file.name;
-            }
-
-            const postData = {
-                content: newPost,
-                classId: classId,
-                createdAt: serverTimestamp(),
-                createdBy: user.uid,
-                fileUrl,
-                fileName
-            };
-
-            await addDoc(collection(db, 'Posts'), postData);
-            setNewPost('');
-            setFile(null);
-            setPreviewUrl(null);
-            fetchPosts();
-            setAlertMessage({ type: 'success', text: 'โพสต์สำเร็จ!' });
-        } catch (error) {
-            console.error("Error posting: ", error);
-            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการโพสต์ กรุณาลองอีกครั้ง' });
-        }
-    };
 
     const fetchClassroomData = async () => {
         try {
@@ -199,6 +152,44 @@ function ClassroomDetails() {
         } catch (error) {
             console.error("Error checking assignments:", error);
             setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการตรวจสอบงานที่มอบหมาย' });
+        }
+    };
+
+    const handleShowEditModal = () => {
+        setEditedClassroom({
+            ClassName: classroom.ClassName,
+            ClassDescription: classroom.ClassDescription
+        });
+        setShowEditModal(true);
+    };
+
+    const handleCloseEditModal = () => {
+        setShowEditModal(false);
+    };
+
+    const handleEditInputChange = (e) => {
+        const { name, value } = e.target;
+        setEditedClassroom(prev => ({ ...prev, [name]: value }));
+    };
+
+    const handleEditSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const classroomRef = doc(db, 'Classrooms', classId);
+            await updateDoc(classroomRef, {
+                ClassName: editedClassroom.ClassName,
+                ClassDescription: editedClassroom.ClassDescription
+            });
+            setClassroom(prev => ({
+                ...prev,
+                ClassName: editedClassroom.ClassName,
+                ClassDescription: editedClassroom.ClassDescription
+            }));
+            setShowEditModal(false);
+            setAlertMessage({ type: 'success', text: 'อัปเดตข้อมูลห้องเรียนสำเร็จ' });
+        } catch (error) {
+            console.error("Error updating classroom:", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการอัปเดตข้อมูลห้องเรียน' });
         }
     };
 
@@ -307,6 +298,10 @@ function ClassroomDetails() {
                                     <Card.Body>
                                         <Card.Title className="h5 mb-3">การจัดการห้องเรียน</Card.Title>
                                         <ListGroup variant="flush">
+
+                                            <ListGroup.Item action onClick={handleShowEditModal}>
+                                                <FaEdit className="me-2" /> แก้ไขห้องเรียน
+                                            </ListGroup.Item>
                                             <ListGroup.Item action onClick={() => setShowStudents(true)} className="d-flex justify-content-between align-items-center">
                                                 <span><FaUsers className="me-2" /> จัดการรายชื่อนักเรียน</span>
                                                 <Badge bg="primary" pill>{students.length}</Badge>
@@ -354,6 +349,40 @@ function ClassroomDetails() {
                     <GradeReport classId={classId} />
                 </Modal.Body>
             </Modal>
+
+            <Modal show={showEditModal} onHide={handleCloseEditModal}>
+                <Modal.Header closeButton>
+                    <Modal.Title>แก้ไขข้อมูลห้องเรียน</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form onSubmit={handleEditSubmit}>
+                        <Form.Group className="mb-3">
+                            <Form.Label>ชื่อห้องเรียน</Form.Label>
+                            <Form.Control
+                                type="text"
+                                name="ClassName"
+                                value={editedClassroom.ClassName}
+                                onChange={handleEditInputChange}
+                                required
+                            />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>รายละเอียดห้องเรียน</Form.Label>
+                            <Form.Control
+                                as="textarea"
+                                rows={3}
+                                name="ClassDescription"
+                                value={editedClassroom.ClassDescription}
+                                onChange={handleEditInputChange}
+                            />
+                        </Form.Group>
+                        <Button variant="primary" type="submit">
+                            บันทึกการเปลี่ยนแปลง
+                        </Button>
+                    </Form>
+                </Modal.Body>
+            </Modal>
+
         </>
     );
 }

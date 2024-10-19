@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Table, Alert, Spinner, Button, ButtonGroup, Form, Row, Col, ProgressBar } from 'react-bootstrap';
 import { collection, query, where, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaTrash } from 'react-icons/fa';
+import { FaSearch, FaSortAmountDown, FaSortAmountUp, FaTrash, FaSortAlphaDown, FaSortAlphaUp } from 'react-icons/fa';
 
 function GradeReport({ classId }) {
     const [students, setStudents] = useState([]);
@@ -15,6 +15,7 @@ function GradeReport({ classId }) {
     const [deletingQuizResult, setDeletingQuizResult] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'ascending' });
+    const [sortType, setSortType] = useState('score');
 
 
     useEffect(() => {
@@ -108,10 +109,11 @@ function GradeReport({ classId }) {
 
 
 
-    const handleSort = () => {
+    const handleSort = (type) => {
+        setSortType(type);
         setSortConfig(prevConfig => ({
-            key: 'totalScore',
-            direction: prevConfig.direction === 'ascending' ? 'descending' : 'ascending'
+            key: type,
+            direction: prevConfig.key === type && prevConfig.direction === 'ascending' ? 'descending' : 'ascending'
         }));
     };
 
@@ -128,12 +130,19 @@ function GradeReport({ classId }) {
     };
 
     const sortedStudents = [...filteredStudents].sort((a, b) => {
-        if (!sortConfig.key) return 0;
-        const aValue = calculateTotalScore(a.id);
-        const bValue = calculateTotalScore(b.id);
-        if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
-        if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
-        return 0;
+        if (sortType === 'name') {
+            const nameA = `${a.FirstName} ${a.LastName}`.toLowerCase();
+            const nameB = `${b.FirstName} ${b.LastName}`.toLowerCase();
+            return sortConfig.direction === 'ascending'
+                ? nameA.localeCompare(nameB)
+                : nameB.localeCompare(nameA);
+        } else {
+            const aValue = calculateTotalScore(a.id);
+            const bValue = calculateTotalScore(b.id);
+            if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        }
     });
 
     const calculateMaxScore = () => {
@@ -180,7 +189,7 @@ function GradeReport({ classId }) {
     return (
         <Card className="shadow-sm">
             <Card.Body>
-                <Card.Title className="mb-4">รายงานคะแนน</Card.Title>
+                <Card.Title className="mb-4"></Card.Title>
                 <Row className="mb-3">
                     <Col md={6}>
                         <Form.Group>
@@ -193,9 +202,20 @@ function GradeReport({ classId }) {
                         </Form.Group>
                     </Col>
                     <Col md={6} className="text-md-end">
-                        <Button variant="outline-primary" onClick={handleSort}>
-                            {sortConfig.direction === 'ascending' ? <FaSortAmountUp /> : <FaSortAmountDown />} เรียงตามคะแนนรวม
-                        </Button>
+                        <ButtonGroup>
+                            <Button
+                                variant={sortType === 'score' ? "primary" : "outline-primary"}
+                                onClick={() => handleSort('score')}
+                            >
+                                {sortConfig.direction === 'ascending' ? <FaSortAmountUp /> : <FaSortAmountDown />} เรียงตามคะแนนรวม
+                            </Button>
+                            <Button
+                                variant={sortType === 'name' ? "primary" : "outline-primary"}
+                                onClick={() => handleSort('name')}
+                            >
+                                {sortConfig.direction === 'ascending' ? <FaSortAlphaDown /> : <FaSortAlphaUp />} เรียงตามชื่อ
+                            </Button>
+                        </ButtonGroup>
                     </Col>
                 </Row>
                 <div className="table-responsive">
@@ -239,8 +259,8 @@ function GradeReport({ classId }) {
                                     ))}
                                     <td>
                                         <strong>{calculateTotalScore(student.id)}</strong> / {calculateMaxScore()}
-                                        <ProgressBar 
-                                            now={(calculateTotalScore(student.id) / calculateMaxScore()) * 100} 
+                                        <ProgressBar
+                                            now={(calculateTotalScore(student.id) / calculateMaxScore()) * 100}
                                             label={`${((calculateTotalScore(student.id) / calculateMaxScore()) * 100).toFixed(0)}%`}
                                             variant="info"
                                             className="mt-1"

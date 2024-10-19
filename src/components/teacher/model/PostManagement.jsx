@@ -196,7 +196,6 @@ function PostManagement({ classId }) {
                 classId: classId,
                 createdAt: serverTimestamp(),
                 createdBy: user.uid,
-                createdByName: user.displayName || 'ไม่ระบุชื่อ',
                 fileUrl,
                 fileName
             };
@@ -436,9 +435,7 @@ function PostManagement({ classId }) {
                                 )}
                                 <div>
                                     <strong className="d-block">
-                                        {post.createdBy === user.uid
-                                            ? `${user.displayName || 'คุณ'} (คุณ)`
-                                            : `${usersData[post.createdBy]?.firstName} ${usersData[post.createdBy]?.lastName} (@${usersData[post.createdBy]?.username || 'ไม่ระบุชื่อ'})`}
+                                        {usersData[post.createdBy]?.firstName || post.createdByName || 'ไม่ระบุชื่อ'} {usersData[post.createdBy]?.lastName || ''}
                                     </strong>
                                     <small className="text-muted">
                                         <FaClock className="me-1" />
