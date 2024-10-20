@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Modal, Button, Form, ListGroup, Spinner, Image } from 'react-bootstrap';
-import { FaUser, FaClock, FaPaperclip, FaImage, FaDownload, FaComment, FaChevronDown, FaChevronUp, FaBullhorn,FaInfoCircle } from 'react-icons/fa';
+import { FaUser, FaClock, FaPaperclip, FaImage, FaDownload, FaComment, FaChevronDown, FaChevronUp, FaBullhorn, FaInfoCircle, FaEdit, FaTrash } from 'react-icons/fa';
 import { db, storage } from '../../../firebase';
-import { doc, getDoc, collection, addDoc, query, where, orderBy, getDocs, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc, query, where, orderBy, getDocs, serverTimestamp, onSnapshot, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ref, getDownloadURL } from 'firebase/storage';
 import { useUserAuth } from '../../../context/UserAuthContext';
 
@@ -18,6 +18,10 @@ function StudentPostDisplay({ posts, classId }) {
     const [commentUsers, setCommentUsers] = useState({});
     const { user } = useUserAuth();
     const [expandedComments, setExpandedComments] = useState({});
+    const [editingCommentId, setEditingCommentId] = useState(null);
+    const [editedCommentContent, setEditedCommentContent] = useState('');
+    const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+    const [commentToDelete, setCommentToDelete] = useState(null);
 
     useEffect(() => {
         fetchUsersData();
@@ -219,26 +223,62 @@ function StudentPostDisplay({ posts, classId }) {
         }
     };
 
-    const toggleCommentExpansion = (postId) => {
-        setExpandedComments(prev => ({
-            ...prev,
-            [postId]: !prev[postId]
-        }));
+    const handleEditComment = (commentId, currentContent) => {
+        setEditingCommentId(commentId);
+        setEditedCommentContent(currentContent);
     };
 
-    const EmptyPostState = () => (
-        <Card className="shadow-sm mb-4 border-0 text-center py-5">
-          <Card.Body>
-            <FaBullhorn className="mb-3 text-primary" size={50} />
-            <Card.Title className="mb-3">ยังไม่มีโพสต์ในห้องเรียนนี้</Card.Title>
-            <Card.Text className="text-muted mb-4">
-              ครูผู้สอนยังไม่ได้สร้างโพสต์ใดๆ ในห้องเรียนนี้
-              <br />
-              ติดตามข่าวสารและประกาศสำคัญจากครูผู้สอนที่นี่
-            </Card.Text>
-          </Card.Body>
-        </Card>
-      );
+    const handleUpdateComment = async (commentId) => {
+        if (editedCommentContent.trim() === '') return;
+
+        try {
+            const commentRef = doc(db, 'Comments', commentId);
+            await updateDoc(commentRef, {
+                content: editedCommentContent,
+                editedAt: serverTimestamp()
+            });
+            setEditingCommentId(null);
+            setEditedCommentContent('');
+        } catch (error) {
+            console.error("Error updating comment: ", error);
+        }
+    };
+
+    const handleDeleteComment = async (comment) => {
+        setCommentToDelete(comment);
+        setShowDeleteConfirmModal(true);
+    };
+
+    const confirmDeleteComment = async () => {
+        if (!commentToDelete) return;
+
+        try {
+            await deleteDoc(doc(db, 'Comments', commentToDelete.id));
+            setShowDeleteConfirmModal(false);
+            setCommentToDelete(null);
+        } catch (error) {
+            console.error("Error deleting comment: ", error);
+        }
+    };
+
+    const DeleteConfirmationModal = () => (
+        <Modal show={showDeleteConfirmModal} onHide={() => setShowDeleteConfirmModal(false)}>
+            <Modal.Header closeButton>
+                <Modal.Title>ยืนยันการลบความคิดเห็น</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+                คุณแน่ใจหรือไม่ที่จะลบความคิดเห็นนี้?
+            </Modal.Body>
+            <Modal.Footer>
+                <Button variant="secondary" onClick={() => setShowDeleteConfirmModal(false)}>
+                    ยกเลิก
+                </Button>
+                <Button variant="danger" onClick={confirmDeleteComment}>
+                    ลบ
+                </Button>
+            </Modal.Footer>
+        </Modal>
+    );
 
     const renderComments = (postId, isModal = false) => {
         const postComments = comments[postId] || [];
@@ -250,19 +290,73 @@ function StudentPostDisplay({ posts, classId }) {
                 <ListGroup variant="flush" className="mt-3">
                     {displayComments.map((comment) => (
                         <ListGroup.Item key={comment.id}>
-                            <div className="d-flex">
-                                <Image
-                                    src={commentUsers[comment.createdBy]?.profileImage || '/default-avatar.png'}
-                                    roundedCircle
-                                    width="32"
-                                    height="32"
-                                    className="me-2"
-                                />
-                                <div>
-                                    <div className="fw-bold">{commentUsers[comment.createdBy]?.firstName || 'ผู้ใช้'} {commentUsers[comment.createdBy]?.lastName || ''}</div>
-                                    <p>{comment.content}</p>
-                                    <small className="text-muted">{formatDate(comment.createdAt?.toDate())}</small>
+                            <div className="d-flex justify-content-between">
+                                <div className="d-flex">
+                                    <Image
+                                        src={commentUsers[comment.createdBy]?.profileImage || '/default-avatar.png'}
+                                        roundedCircle
+                                        width="32"
+                                        height="32"
+                                        className="me-2"
+                                    />
+                                    <div>
+                                        <div className="fw-bold">
+                                            {commentUsers[comment.createdBy]?.firstName || 'ผู้ใช้'} {commentUsers[comment.createdBy]?.lastName || ''}
+                                        </div>
+                                        {editingCommentId === comment.id ? (
+                                            <Form.Group>
+                                                <Form.Control
+                                                    as="textarea"
+                                                    rows={2}
+                                                    value={editedCommentContent}
+                                                    onChange={(e) => setEditedCommentContent(e.target.value)}
+                                                    className="mb-2"
+                                                />
+                                                <Button
+                                                    variant="primary"
+                                                    size="sm"
+                                                    onClick={() => handleUpdateComment(comment.id)}
+                                                    className="me-2"
+                                                >
+                                                    บันทึก
+                                                </Button>
+                                                <Button
+                                                    variant="secondary"
+                                                    size="sm"
+                                                    onClick={() => setEditingCommentId(null)}
+                                                >
+                                                    ยกเลิก
+                                                </Button>
+                                            </Form.Group>
+                                        ) : (
+                                            <p>{comment.content}</p>
+                                        )}
+                                        <small className="text-muted">
+                                            {formatDate(comment.createdAt?.toDate())}
+                                            {comment.editedAt && ' (แก้ไขแล้ว)'}
+                                        </small>
+                                    </div>
                                 </div>
+                                {comment.createdBy === user.uid && !editingCommentId && (
+                                    <div>
+                                        <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="text-primary p-0 me-2"
+                                            onClick={() => handleEditComment(comment.id, comment.content)}
+                                        >
+                                            <FaEdit />
+                                        </Button>
+                                        <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="text-danger p-0"
+                                            onClick={() => handleDeleteComment(comment)}
+                                        >
+                                            <FaTrash />
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </ListGroup.Item>
                     ))}
@@ -297,6 +391,29 @@ function StudentPostDisplay({ posts, classId }) {
             </>
         );
     };
+
+    const toggleCommentExpansion = (postId) => {
+        setExpandedComments(prev => ({
+            ...prev,
+            [postId]: !prev[postId]
+        }));
+    };
+
+    const EmptyPostState = () => (
+        <Card className="shadow-sm mb-4 border-0 text-center py-5">
+          <Card.Body>
+            <FaBullhorn className="mb-3 text-primary" size={50} />
+            <Card.Title className="mb-3">ยังไม่มีโพสต์ในห้องเรียนนี้</Card.Title>
+            <Card.Text className="text-muted mb-4">
+              ครูผู้สอนยังไม่ได้สร้างโพสต์ใดๆ ในห้องเรียนนี้
+              <br />
+              ติดตามข่าวสารและประกาศสำคัญจากครูผู้สอนที่นี่
+            </Card.Text>
+          </Card.Body>
+        </Card>
+      );
+
+
 
     return (
         <>
@@ -392,6 +509,8 @@ function StudentPostDisplay({ posts, classId }) {
                     )}
                 </Modal.Body>
             </Modal>
+
+            <DeleteConfirmationModal />
         </>
     );
 }

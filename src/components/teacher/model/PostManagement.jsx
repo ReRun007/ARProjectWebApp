@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Button, Alert, Badge, Modal, ListGroup, Spinner, Image } from 'react-bootstrap';
-import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, onSnapshot, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { db, storage } from '../../../firebase';
 import { useUserAuth } from '../../../context/UserAuthContext';
-import { FaImage, FaPlusCircle, FaUser, FaClock, FaPaperclip, FaDownload, FaComment, FaChevronDown, FaChevronUp, FaEdit } from 'react-icons/fa';
+import { FaImage, FaPlusCircle, FaUser, FaClock, FaPaperclip, FaDownload, FaComment, FaChevronDown, FaChevronUp, FaEdit, FaTrash } from 'react-icons/fa';
 
 function PostManagement({ classId }) {
     const [posts, setPosts] = useState([]);
@@ -25,6 +25,12 @@ function PostManagement({ classId }) {
     const [expandedComments, setExpandedComments] = useState({});
     const [editingPost, setEditingPost] = useState(null);
     const [showEditModal, setShowEditModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [postToDelete, setPostToDelete] = useState(null);
+    const [editingComment, setEditingComment] = useState(null);
+    const [showEditCommentModal, setShowEditCommentModal] = useState(false);
+    const [showDeleteCommentModal, setShowDeleteCommentModal] = useState(false);
+    const [commentToDelete, setCommentToDelete] = useState(null);
 
     useEffect(() => {
         fetchPosts();
@@ -249,6 +255,47 @@ function PostManagement({ classId }) {
         }
     };
 
+    const handleDeleteClick = (post) => {
+        setPostToDelete(post);
+        setShowDeleteModal(true);
+    };
+
+    const handleDeletePost = async () => {
+        if (!postToDelete) return;
+
+        try {
+            // Delete the post document
+            await deleteDoc(doc(db, 'Posts', postToDelete.id));
+
+            // Delete associated file if exists
+            if (postToDelete.fileUrl) {
+                try {
+                    const fileRef = ref(storage, postToDelete.fileUrl);
+                    await deleteObject(fileRef);
+                } catch (error) {
+                    console.error("Error deleting file:", error);
+                }
+            }
+
+            // Delete associated comments
+            const commentsQuery = query(
+                collection(db, 'Comments'),
+                where('postId', '==', postToDelete.id)
+            );
+            const commentsSnapshot = await getDocs(commentsQuery);
+            const deleteCommentPromises = commentsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deleteCommentPromises);
+
+            setShowDeleteModal(false);
+            setPostToDelete(null);
+            setAlertMessage({ type: 'success', text: 'ลบโพสต์สำเร็จ!' });
+            await fetchPosts(); // Refresh the posts list
+        } catch (error) {
+            console.error("Error deleting post: ", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการลบโพสต์ กรุณาลองอีกครั้ง' });
+        }
+    };
+
     const formatDate = (date) => {
         if (!date) return '';
         return date.toLocaleString('th-TH', {
@@ -353,6 +400,39 @@ function PostManagement({ classId }) {
         }));
     };
 
+    const handleEditComment = async () => {
+        if (!editingComment) return;
+
+        try {
+            const commentRef = doc(db, 'Comments', editingComment.id);
+            await updateDoc(commentRef, {
+                content: editingComment.content,
+                updatedAt: serverTimestamp()
+            });
+
+            setShowEditCommentModal(false);
+            setEditingComment(null);
+            setAlertMessage({ type: 'success', text: 'แก้ไขความคิดเห็นสำเร็จ!' });
+        } catch (error) {
+            console.error("Error editing comment: ", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการแก้ไขความคิดเห็น กรุณาลองอีกครั้ง' });
+        }
+    };
+
+    const handleDeleteComment = async () => {
+        if (!commentToDelete) return;
+
+        try {
+            await deleteDoc(doc(db, 'Comments', commentToDelete.id));
+            setShowDeleteCommentModal(false);
+            setCommentToDelete(null);
+            setAlertMessage({ type: 'success', text: 'ลบความคิดเห็นสำเร็จ!' });
+        } catch (error) {
+            console.error("Error deleting comment: ", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการลบความคิดเห็น กรุณาลองอีกครั้ง' });
+        }
+    }; 
+
     const renderComments = (postId, isModal = false) => {
         const postComments = comments[postId] || [];
         const isExpanded = expandedComments[postId] || isModal;
@@ -363,21 +443,52 @@ function PostManagement({ classId }) {
                 <ListGroup variant="flush" className="mt-3">
                     {displayComments.map((comment) => (
                         <ListGroup.Item key={comment.id}>
-                            <div className="d-flex">
-                                <Image
-                                    src={commentUsers[comment.createdBy]?.profileImage || '/default-avatar.png'}
-                                    roundedCircle
-                                    width="32"
-                                    height="32"
-                                    className="me-2"
-                                />
-                                <div>
-                                    <div className="fw-bold">
-                                        {commentUsers[comment.createdBy]?.FirstName || 'ผู้ใช้'} {commentUsers[comment.createdBy]?.LastName || ''}
+                            <div className="d-flex justify-content-between">
+                                <div className="d-flex">
+                                    <Image
+                                        src={commentUsers[comment.createdBy]?.profileImage || '/default-avatar.png'}
+                                        roundedCircle
+                                        width="32"
+                                        height="32"
+                                        className="me-2"
+                                    />
+                                    <div>
+                                        <div className="fw-bold">
+                                            {commentUsers[comment.createdBy]?.FirstName || 'ผู้ใช้'} {commentUsers[comment.createdBy]?.LastName || ''}
+                                        </div>
+                                        <p>{comment.content}</p>
+                                        <small className="text-muted">
+                                            {formatDate(comment.createdAt?.toDate())}
+                                            {comment.updatedAt && ' (แก้ไขแล้ว)'}
+                                        </small>
                                     </div>
-                                    <p>{comment.content}</p>
-                                    <small className="text-muted">{formatDate(comment.createdAt?.toDate())}</small>
                                 </div>
+                                {comment.createdBy === user.uid && (
+                                    <div>
+                                        <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="text-secondary p-0 me-2"
+                                            onClick={() => {
+                                                setEditingComment(comment);
+                                                setShowEditCommentModal(true);
+                                            }}
+                                        >
+                                            <FaEdit />
+                                        </Button>
+                                        <Button
+                                            variant="link"
+                                            size="sm"
+                                            className="text-danger p-0"
+                                            onClick={() => {
+                                                setCommentToDelete(comment);
+                                                setShowDeleteCommentModal(true);
+                                            }}
+                                        >
+                                            <FaTrash />
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         </ListGroup.Item>
                     ))}
@@ -490,14 +601,28 @@ function PostManagement({ classId }) {
 
                             <div className="mt-3">
                                 {post.createdBy === user.uid && (
-                                    <Button variant="outline-secondary" size="sm" onClick={() => {
-                                        setEditingPost(post);
-                                        setShowEditModal(true);
-                                        setFile(null);
-                                        setPreviewUrl(null);
-                                    }}>
-                                        <FaEdit className="me-1" /> แก้ไขโพส
-                                    </Button>
+                                    <>
+                                        <Button
+                                            variant="outline-secondary"
+                                            size="sm"
+                                            onClick={() => {
+                                                setEditingPost(post);
+                                                setShowEditModal(true);
+                                                setFile(null);
+                                                setPreviewUrl(null);
+                                            }}
+                                            className="me-2"
+                                        >
+                                            <FaEdit className="me-1" /> แก้ไขโพส
+                                        </Button>
+                                        <Button
+                                            variant="outline-danger"
+                                            size="sm"
+                                            onClick={() => handleDeleteClick(post)}
+                                        >
+                                            <FaTrash className="me-1" /> ลบโพส
+                                        </Button>
+                                    </>
                                 )}
                                 <br /> <br />
                                 <Button variant="outline-primary" size="sm" onClick={() => handleShowCommentModal(post)} className="me-2">
@@ -606,6 +731,63 @@ function PostManagement({ classId }) {
                         </Button>
                     </Form>
                 </Modal.Body>
+            </Modal>
+
+
+            <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>ยืนยันการลบโพสต์</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>คุณแน่ใจหรือไม่ที่จะลบโพสต์นี้? การดำเนินการนี้ไม่สามารถยกเลิกได้</p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
+                        ยกเลิก
+                    </Button>
+                    <Button variant="danger" onClick={handleDeletePost}>
+                        ยืนยันการลบ
+                    </Button>
+                </Modal.Footer>
+            </Modal>
+
+            <Modal show={showEditCommentModal} onHide={() => setShowEditCommentModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>แก้ไขความคิดเห็น</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form onSubmit={(e) => { e.preventDefault(); handleEditComment(); }}>
+                        <Form.Group className="mb-3">
+                            <Form.Control
+                                as="textarea"
+                                rows={3}
+                                value={editingComment?.content || ''}
+                                onChange={(e) => setEditingComment({ ...editingComment, content: e.target.value })}
+                                placeholder="แก้ไขความคิดเห็นของคุณที่นี่..."
+                            />
+                        </Form.Group>
+                        <Button variant="primary" type="submit">
+                            บันทึกการแก้ไข
+                        </Button>
+                    </Form>
+                </Modal.Body>
+            </Modal>
+
+            <Modal show={showDeleteCommentModal} onHide={() => setShowDeleteCommentModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>ยืนยันการลบความคิดเห็น</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>คุณแน่ใจหรือไม่ที่จะลบความคิดเห็นนี้? การดำเนินการนี้ไม่สามารถยกเลิกได้</p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteCommentModal(false)}>
+                        ยกเลิก
+                    </Button>
+                    <Button variant="danger" onClick={handleDeleteComment}>
+                        ยืนยันการลบ
+                    </Button>
+                </Modal.Footer>
             </Modal>
         </>
     );
