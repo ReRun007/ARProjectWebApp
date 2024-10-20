@@ -24,20 +24,21 @@ function StudentHome() {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (user && user.uid) {
-                try {
-                    setLoading(true);
-                    await Promise.all([fetchClassrooms(), fetchAssignments()]);
-                } catch (error) {
-                    console.error("Error fetching data:", error);
-                } finally {
-                    setLoading(false);
-                }
+          if (user && user.uid) {
+            try {
+              setLoading(true);
+              await fetchClassrooms();
+              await fetchAssignments(); // ต้องแน่ใจว่าเรียกหลัง fetchClassrooms
+            } catch (error) {
+              console.error("Error fetching data:", error);
+            } finally {
+              setLoading(false);
             }
+          }
         };
-
+      
         fetchData();
-    }, [user]);
+      }, [user]);
 
     const fetchClassrooms = async () => {
         const enrollmentsQuery = query(
@@ -111,20 +112,6 @@ function StudentHome() {
         setAssignments(grouped);
     };
     
-    
-
-    const fetchUpcomingAssignments = async () => {
-        const now = new Date();
-        const assignmentsQuery = query(
-            collection(db, "Assignments"),
-            where("dueDate", ">", now),
-            orderBy("dueDate"),
-            limit(5)
-        );
-        const assignmentsSnapshot = await getDocs(assignmentsQuery);
-        const assignmentsData = assignmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setUpcomingAssignments(assignmentsData);
-    };
 
     const handleJoinClass = async () => {
         setJoinError('');
@@ -177,6 +164,7 @@ function StudentHome() {
     }
 
     const renderAssignmentList = (assignmentList, icon, title) => (
+        
         <Card className="mb-3">
             <Card.Header className="bg-light">
                 <h6 className="mb-0"><FaClipboardList className="me-2" />{title}</h6>
@@ -250,7 +238,7 @@ function StudentHome() {
                             <Card.Body>
                                 {renderAssignmentList(assignments.today, <FaClock className="text-warning" />, "ส่งวันนี้")}
                                 {renderAssignmentList(assignments.overdue, <FaExclamationTriangle className="text-danger" />, "เลยกำหนดส่ง")}
-                                {renderAssignmentList(assignments.upcoming, <FaCalendarAlt className="text-info" />, "กำหนดส่งในอนาคต")}
+                                {renderAssignmentList(assignments.upcoming, <FaCalendarAlt className="text-info" />, "ยังไม่ถึงกำหนด")}
                             </Card.Body>
                         </Card>
                     </Col>

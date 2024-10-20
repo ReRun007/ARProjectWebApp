@@ -20,6 +20,7 @@ function StudentClassroomDetails() {
     const [loading, setLoading] = useState(true);
     const [showMembersModal, setShowMembersModal] = useState(false);
     const [members, setMembers] = useState([]);
+    const [teacher, setTeacher] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
@@ -28,7 +29,15 @@ function StudentClassroomDetails() {
             try {
                 const classDoc = await getDoc(doc(db, 'Classrooms', classId));
                 if (classDoc.exists()) {
+                    const classData = classDoc.data();
                     setClassroom(classDoc.data());
+
+                    const teacherId = classData.TeachersID.split('/')[2]; // Assuming TeachersID is in format "/Teachers/teacherId"
+                    const teacherDoc = await getDoc(doc(db, 'Teachers', teacherId));
+                    if (teacherDoc.exists()) {
+                        setTeacher({ id: teacherId, ...teacherDoc.data() });
+                    }
+
                 }
 
                 // Fetch posts
@@ -56,6 +65,7 @@ function StudentClassroomDetails() {
                 );
                 const quizzesSnapshot = await getDocs(quizzesQuery);
                 setQuizzes(quizzesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+
                 await fetchMembers();
 
             } catch (error) {
@@ -68,6 +78,7 @@ function StudentClassroomDetails() {
         fetchClassroomData();
     }, [classId]);
 
+
     const fetchMembers = async () => {
         try {
             const enrollmentsQuery = query(
@@ -76,13 +87,13 @@ function StudentClassroomDetails() {
             );
             const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
             const studentIds = enrollmentsSnapshot.docs.map(doc => doc.data().studentId);
-
+    
             const studentsQuery = query(
                 collection(db, 'Students'),
                 where('__name__', 'in', studentIds)
             );
             const studentsSnapshot = await getDocs(studentsQuery);
-            const membersData = await Promise.all(studentsSnapshot.docs.map(async doc => {
+            const studentsData = await Promise.all(studentsSnapshot.docs.map(async doc => {
                 const data = doc.data();
                 let profileImageUrl = null;
                 if (data.URLImage) {
@@ -95,10 +106,31 @@ function StudentClassroomDetails() {
                 return {
                     id: doc.id,
                     ...data,
-                    profileImageUrl
+                    profileImageUrl,
+                    isTeacher: false
                 };
             }));
-            setMembers(membersData);
+    
+            let allMembers = [...studentsData];
+    
+            // Add teacher to members list
+            if (teacher) {
+                let teacherProfileImageUrl = null;
+                if (teacher.URLImage) {
+                    try {
+                        teacherProfileImageUrl = await getDownloadURL(ref(storage, teacher.URLImage));
+                    } catch (error) {
+                        console.error("Error fetching teacher profile image:", error);
+                    }
+                }
+                allMembers.unshift({
+                    ...teacher,
+                    profileImageUrl: teacherProfileImageUrl,
+                    isTeacher: true
+                });
+            }
+    
+            setMembers(allMembers);
         } catch (error) {
             console.error("Error fetching members: ", error);
         }
@@ -198,7 +230,10 @@ function StudentClassroomDetails() {
                                     </div>
                                 )}
                                 <div>
-                                    <div><strong>{member.FirstName} {member.LastName}</strong></div>
+                                    <div>
+                                        <strong>{member.FirstName} {member.LastName}</strong>
+                                        {member.isTeacher && <span className="ms-2 badge bg-primary">ครูผู้สอน</span>}
+                                    </div>
                                     <small className="text-muted">@{member.Username}</small>
                                 </div>
                             </ListGroup.Item>

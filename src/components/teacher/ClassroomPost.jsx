@@ -7,6 +7,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { FaFile, FaImage } from 'react-icons/fa';
 import Header from './Header';
 
+//ไฟล์นี้ไม่ใช้
 function ClassroomPost() {
     const [content, setContent] = useState('');
     const [selectedRooms, setSelectedRooms] = useState([]);

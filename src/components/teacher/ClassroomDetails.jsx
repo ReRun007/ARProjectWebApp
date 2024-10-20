@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import Header from './Header';
 import { useUserAuth } from '../../context/UserAuthContext';
 import { db, storage } from '../../firebase';
 import { doc, getDoc, collection, query, where, getDocs, deleteDoc, orderBy, updateDoc } from 'firebase/firestore';
 import { Container, Row, Col, Card, ListGroup, Button, Spinner, Modal, Alert, Badge, Nav, Form } from 'react-bootstrap';
-import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey, FaTasks, FaGraduationCap, FaCalendarCheck, FaEdit } from 'react-icons/fa';
+import { FaChalkboardTeacher, FaUsers, FaBook, FaClipboardList, FaKey, FaTasks, FaGraduationCap, FaCalendarCheck, FaEdit,FaTrash  } from 'react-icons/fa';
 
 import PostManagement from './model/PostManagement';
 import StudentListModal from './model/StudentListModal';
@@ -36,6 +37,10 @@ function ClassroomDetails() {
     const [posts, setPosts] = useState([]);
     const [showEditModal, setShowEditModal] = useState(false);
     const [editedClassroom, setEditedClassroom] = useState({ ClassName: '', ClassDescription: '' });
+    const [showDeleteClassroomModal, setShowDeleteClassroomModal] = useState(false);
+    const navigate = useNavigate();
+
+
 
 
 
@@ -193,6 +198,34 @@ function ClassroomDetails() {
         }
     };
 
+    const handleDeleteClassroom = async () => {
+        if (!classId) return;
+
+        try {
+            // Delete the classroom document
+            await deleteDoc(doc(db, 'Classrooms', classId));
+
+            // Delete all associated posts
+            const postsQuery = query(collection(db, 'Posts'), where('classId', '==', classId));
+            const postsSnapshot = await getDocs(postsQuery);
+            const deletePostPromises = postsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deletePostPromises);
+
+            // Delete all associated comments
+            const commentsQuery = query(collection(db, 'Comments'), where('classId', '==', classId));
+            const commentsSnapshot = await getDocs(commentsQuery);
+            const deleteCommentPromises = commentsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+            await Promise.all(deleteCommentPromises);
+
+            // Navigate back to the teacher's home page
+            navigate('/teacher/home');
+            setAlertMessage({ type: 'success', text: 'ลบห้องเรียนสำเร็จ!' });
+        } catch (error) {
+            console.error("Error deleting classroom: ", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการลบห้องเรียน กรุณาลองอีกครั้ง' });
+        }
+    };
+
     useEffect(() => {
         const loadData = async () => {
             if (classId) {
@@ -312,6 +345,10 @@ function ClassroomDetails() {
                                             <ListGroup.Item action onClick={() => setShowGradeReport(true)}>
                                                 <FaClipboardList className="me-2" /> แสดงรายงานคะแนน
                                             </ListGroup.Item>
+
+                                            <ListGroup.Item action onClick={() => setShowDeleteClassroomModal(true)} className="text-danger">
+                                                <FaTrash className="me-2" /> ลบห้องเรียน
+                                            </ListGroup.Item>
                                         </ListGroup>
                                     </Card.Body>
                                 </Card>
@@ -381,6 +418,23 @@ function ClassroomDetails() {
                         </Button>
                     </Form>
                 </Modal.Body>
+            </Modal>
+
+            <Modal show={showDeleteClassroomModal} onHide={() => setShowDeleteClassroomModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>ยืนยันการลบห้องเรียน</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <p>คุณแน่ใจหรือไม่ที่จะลบห้องเรียนนี้? การดำเนินการนี้ไม่สามารถยกเลิกได้ และข้อมูลทั้งหมดในห้องเรียนจะถูกลบถาวร</p>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowDeleteClassroomModal(false)}>
+                        ยกเลิก
+                    </Button>
+                    <Button variant="danger" onClick={handleDeleteClassroom}>
+                        ยืนยันการลบ
+                    </Button>
+                </Modal.Footer>
             </Modal>
 
         </>
