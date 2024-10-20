@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Container, Row, Col, Card, Tab, Tabs, Spinner } from 'react-bootstrap';
-import { db } from '../../firebase';
+import { Container, Row, Col, Card, Tab, Tabs, Spinner, Button, Modal, ListGroup, Form, InputGroup } from 'react-bootstrap';
+import { db, storage } from '../../firebase';
 import { doc, getDoc, collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { ref, getDownloadURL } from 'firebase/storage';
 import Header from './Header';
 import StudentPostDisplay from './model/StudentPostDisplay';
 import StudentLessonDisplay from './model/StudentLessonDisplay';
 import StudentQuizDisplay from './model/StudentQuizDisplay';
 import StudentAssignmentDisplay from './model/StudentAssignmentDisplay';
+import { FaSearch, FaUserCircle } from 'react-icons/fa';
 
 function StudentClassroomDetails() {
     const { classId } = useParams();
@@ -16,6 +18,9 @@ function StudentClassroomDetails() {
     const [lessons, setLessons] = useState([]);
     const [quizzes, setQuizzes] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showMembersModal, setShowMembersModal] = useState(false);
+    const [members, setMembers] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     useEffect(() => {
         const fetchClassroomData = async () => {
@@ -51,6 +56,7 @@ function StudentClassroomDetails() {
                 );
                 const quizzesSnapshot = await getDocs(quizzesQuery);
                 setQuizzes(quizzesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+                await fetchMembers();
 
             } catch (error) {
                 console.error("Error fetching classroom data: ", error);
@@ -61,6 +67,48 @@ function StudentClassroomDetails() {
 
         fetchClassroomData();
     }, [classId]);
+
+    const fetchMembers = async () => {
+        try {
+            const enrollmentsQuery = query(
+                collection(db, 'ClassEnrollments'),
+                where('classId', '==', classId)
+            );
+            const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+            const studentIds = enrollmentsSnapshot.docs.map(doc => doc.data().studentId);
+
+            const studentsQuery = query(
+                collection(db, 'Students'),
+                where('__name__', 'in', studentIds)
+            );
+            const studentsSnapshot = await getDocs(studentsQuery);
+            const membersData = await Promise.all(studentsSnapshot.docs.map(async doc => {
+                const data = doc.data();
+                let profileImageUrl = null;
+                if (data.URLImage) {
+                    try {
+                        profileImageUrl = await getDownloadURL(ref(storage, data.URLImage));
+                    } catch (error) {
+                        console.error("Error fetching profile image:", error);
+                    }
+                }
+                return {
+                    id: doc.id,
+                    ...data,
+                    profileImageUrl
+                };
+            }));
+            setMembers(membersData);
+        } catch (error) {
+            console.error("Error fetching members: ", error);
+        }
+    };
+
+    const filteredMembers = members.filter(member => 
+        member.FirstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.LastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        member.Username.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     if (loading) {
         return (
@@ -83,6 +131,9 @@ function StudentClassroomDetails() {
                                 <Card.Title className="display-4 mb-2">{classroom?.ClassName}</Card.Title>
                                 <Card.Subtitle className="mb-4 text-muted">{classroom?.ClassId}</Card.Subtitle>
                                 <Card.Text>{classroom?.ClassDescription}</Card.Text>
+                                <Button variant="outline-primary" onClick={() => setShowMembersModal(true)}>
+                                    ดูสมาชิก
+                                </Button>
                             </Card.Body>
                         </Card>
 
@@ -103,8 +154,62 @@ function StudentClassroomDetails() {
                     </Col>
                 </Row>
             </Container>
+
+            <Modal show={showMembersModal} onHide={() => setShowMembersModal(false)} size="lg">
+                <Modal.Header closeButton>
+                    <Modal.Title>สมาชิกในห้องเรียน</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <InputGroup className="mb-3">
+                        <InputGroup.Text>
+                            <FaSearch />
+                        </InputGroup.Text>
+                        <Form.Control
+                            placeholder="ค้นหาสมาชิก..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </InputGroup>
+                    <ListGroup>
+                        {filteredMembers.map(member => (
+                            <ListGroup.Item key={member.id} className="d-flex align-items-center">
+                                {member.profileImageUrl ? (
+                                    <img
+                                        src={member.profileImageUrl}
+                                        alt={`${member.FirstName} ${member.LastName}`}
+                                        style={{ width: '40px', height: '40px', borderRadius: '50%', marginRight: '10px' }}
+                                    />
+                                ) : (
+                                    <div
+                                        style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            borderRadius: '50%',
+                                            backgroundColor: '#007bff',
+                                            color: 'white',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            marginRight: '10px',
+                                            fontSize: '18px'
+                                        }}
+                                    >
+                                        {member.FirstName[0]}
+                                    </div>
+                                )}
+                                <div>
+                                    <div><strong>{member.FirstName} {member.LastName}</strong></div>
+                                    <small className="text-muted">@{member.Username}</small>
+                                </div>
+                            </ListGroup.Item>
+                        ))}
+                    </ListGroup>
+                </Modal.Body>
+            </Modal>
         </>
     );
+
+
 }
 
 export default StudentClassroomDetails;

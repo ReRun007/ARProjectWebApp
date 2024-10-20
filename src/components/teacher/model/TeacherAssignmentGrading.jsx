@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Table, Modal, Form, Alert, Dropdown, Spinner, Badge,Image } from 'react-bootstrap';
+import { Card, Button, Row, Col, Modal, Form, Alert, Dropdown, Badge, Image, InputGroup } from 'react-bootstrap';
 import { collection, query, where, getDocs, updateDoc, doc } from 'firebase/firestore';
 import { db } from '../../../firebase';
-import { FaDownload, FaEdit, FaClipboardList, FaFile, FaInfoCircle, FaUndoAlt,FaEye } from 'react-icons/fa';
+import { FaDownload, FaEdit, FaClipboardList, FaFile, FaInfoCircle, FaUndoAlt, FaEye, FaClipboardCheck, FaSearch } from 'react-icons/fa';
+
+
 
 
 function TeacherAssignmentGrading({ classId }) {
@@ -19,6 +21,9 @@ function TeacherAssignmentGrading({ classId }) {
     const [loading, setLoading] = useState(true);
     const [showSubmissionModal, setShowSubmissionModal] = useState(false);
     const [selectedSubmissionFile, setSelectedSubmissionFile] = useState(null);
+    const [progress, setProgress] = useState(0);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
 
     useEffect(() => {
         fetchAssignments();
@@ -30,6 +35,13 @@ function TeacherAssignmentGrading({ classId }) {
             fetchSubmissions(selectedAssignment.id);
         }
     }, [selectedAssignment]);
+
+    useEffect(() => {
+        if (submissions.length > 0) {
+            const gradedSubmissions = submissions.filter(s => s.status === 'graded').length;
+            setProgress((gradedSubmissions / submissions.length) * 100);
+        }
+    }, [submissions]);
 
     const fetchAssignments = async () => {
         try {
@@ -88,21 +100,16 @@ function TeacherAssignmentGrading({ classId }) {
         }
     };
 
-    const fetchStudents = async () => {
-        try {
-            const studentsQuery = query(collection(db, "Students"));
-            const studentsSnapshot = await getDocs(studentsQuery);
-            const studentsData = {};
-            studentsSnapshot.docs.forEach(doc => {
-                const student = doc.data();
-                studentsData[doc.id] = `${student.FirstName} ${student.LastName}`;
-            });
-            setStudents(studentsData);
-        } catch (error) {
-            console.error("Error fetching students:", error);
-            setError("Failed to load student information. Please try again.");
-        }
-    };
+        const filteredStudents = Object.entries(students).filter(([studentId, studentName]) => {
+        const submission = submissions.find(s => s.studentId === studentId);
+        const matchesSearch = studentName.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesFilter = filterStatus === 'all' || 
+                              (filterStatus === 'ungraded' && (!submission || submission.status !== 'graded'));
+        return matchesSearch && matchesFilter;
+    });
+
+
+
 
     const handleShowGradingModal = (submission) => {
         setSelectedSubmission(submission);
@@ -195,7 +202,7 @@ function TeacherAssignmentGrading({ classId }) {
         const cleanFilename = filename.split('?')[0]; // ตัด query string ออก
         return cleanFilename.slice((cleanFilename.lastIndexOf(".") - 1 >>> 0) + 2).toLowerCase();
     };
-    
+
 
     const renderSubmissionFile = () => {
         if (!selectedSubmissionFile) return null;
@@ -276,6 +283,51 @@ function TeacherAssignmentGrading({ classId }) {
         return <Badge bg="primary">ส่งแล้ว</Badge>;
     };
 
+    const renderSubmissionCard = (studentId, studentName) => {
+        const submission = submissions.find(s => s.studentId === studentId);
+        return (
+            <Card key={studentId} className="mb-3 shadow-sm">
+                <Card.Body>
+                    <Row>
+                        <Col md={3}>
+                            <h5>{studentName}</h5>
+                            {getSubmissionStatus(submission)}
+                        </Col>
+                        <Col md={5}>
+                            {renderSubmissionDetails(submission)}
+                            {submission && (
+                                <small className="d-block mt-2">
+                                    ส่งเมื่อ: {submission.submittedAt.toDate().toLocaleString()}
+                                </small>
+                            )}
+                        </Col>
+                        <Col md={2} className="text-center">
+                            <h6>คะแนน</h6>
+                            <span className="fs-4">{submission?.grade !== undefined ? `${submission.grade}/${selectedAssignment.points}` : '-'}</span>
+                        </Col>
+                        <Col md={2}>
+                            {submission && (
+                                <div className="d-flex flex-column">
+                                    <Button variant="outline-primary" size="sm" onClick={() => handleShowSubmission(submission)} className="mb-2">
+                                        <FaEye /> ดูงาน
+                                    </Button>
+                                    <Button variant="outline-success" size="sm" onClick={() => handleShowGradingModal(submission)} className="mb-2">
+                                        <FaEdit /> ให้คะแนน
+                                    </Button>
+                                    {(submission.grade === undefined || submission.grade === null) && (
+                                        <Button variant="outline-warning" size="sm" onClick={() => handleReturnAssignment(submission)}>
+                                            <FaUndoAlt /> ส่งคืน
+                                        </Button>
+                                    )}
+                                </div>
+                            )}
+                        </Col>
+                    </Row>
+                </Card.Body>
+            </Card>
+        );
+    };
+
 
 
     if (assignments.length === 0) {
@@ -284,73 +336,83 @@ function TeacherAssignmentGrading({ classId }) {
 
     return (
         <Card className="mt-4">
-            <Card.Body>
-                <Card.Title>การตรวจงาน</Card.Title>
+
+<Card.Body>
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                    <div className="d-flex align-items-center">
+                        <FaClipboardCheck size={30} className="text-primary me-3" />
+                        <h2 className="mb-0">การตรวจงาน</h2>
+                    </div>
+                    <Badge bg="info" className="px-3 py-2">
+                        จำนวนงานทั้งหมด: {assignments.length}
+                    </Badge>
+                </div>
+                <hr className="my-4" />
                 {error && <Alert variant="danger">{error}</Alert>}
                 {success && <Alert variant="success">{success}</Alert>}
-                <Dropdown className="mb-3">
-                    <Dropdown.Toggle variant="primary" id="dropdown-assignment">
-                        {selectedAssignment ? selectedAssignment.title : 'เลือกงานที่จะตรวจ'}
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                        {assignments.map(assignment => (
-                            <Dropdown.Item key={assignment.id} onClick={() => setSelectedAssignment(assignment)}>
-                                {assignment.title}
-                            </Dropdown.Item>
-                        ))}
-                    </Dropdown.Menu>
-                </Dropdown>
+
+                <Row className="mb-4">
+                    <Col md={4}>
+                        <Dropdown>
+                            <Dropdown.Toggle variant="primary" id="dropdown-assignment">
+                                {selectedAssignment ? selectedAssignment.title : 'เลือกงานที่จะตรวจ'}
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu>
+                                {assignments.map(assignment => (
+                                    <Dropdown.Item key={assignment.id} onClick={() => setSelectedAssignment(assignment)}>
+                                        {assignment.title}
+                                    </Dropdown.Item>
+                                ))}
+                            </Dropdown.Menu>
+                        </Dropdown>
+                    </Col>
+                    <Col md={4}>
+                        <InputGroup>
+                            <InputGroup.Text>
+                                <FaSearch />
+                            </InputGroup.Text>
+                            <Form.Control
+                                type="text"
+                                placeholder="ค้นหาชื่อนักเรียน..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </InputGroup>
+                    </Col>
+                    <Col md={4}>
+                        <Dropdown>
+                            <Dropdown.Toggle variant="outline-secondary" id="dropdown-filter">
+                                {filterStatus === 'all' ? 'ทั้งหมด' : 'ยังไม่ตรวจ'}
+                            </Dropdown.Toggle>
+                            <Dropdown.Menu>
+                                <Dropdown.Item onClick={() => setFilterStatus('all')}>ทั้งหมด</Dropdown.Item>
+                                <Dropdown.Item onClick={() => setFilterStatus('ungraded')}>ยังไม่ตรวจ</Dropdown.Item>
+                            </Dropdown.Menu>
+                        </Dropdown>
+                    </Col>
+                </Row>
+
                 {selectedAssignment && (
-                    <Table striped bordered hover>
-                        <thead>
-                            <tr>
-                                <th>นักเรียน</th>
-                                <th>สถานะ</th>
-                                <th>รายละเอียดการส่งงาน</th>
-                                <th>คะแนน</th>
-                                <th>การดำเนินการ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {Object.entries(students).map(([studentId, studentName]) => {
-                                const submission = submissions.find(s => s.studentId === studentId);
-                                return (
-                                    <tr key={studentId}>
-                                        <td>{studentName}</td>
-                                        <td>{getSubmissionStatus(submission)}</td>
-                                        <td>
-                                            {renderSubmissionDetails(submission)}
-                                            {submission && (
-                                                <small className="d-block">
-                                                    ส่งเมื่อ: {submission.submittedAt.toDate().toLocaleString()}
-                                                </small>
-                                            )}
-                                        </td>
-                                        <td>{submission?.grade !== undefined ? `${submission.grade}/${selectedAssignment.points}` : '-'}</td>
-                                        <td>
-                                            {submission && (
-                                                <>
-                                                    <Button variant="info" onClick={() => handleShowSubmission(submission)} className="me-2">
-                                                        <FaEye /> ดูงาน
-                                                    </Button>
-                                                    <Button variant="primary" onClick={() => handleShowGradingModal(submission)} className="me-2">
-                                                        <FaEdit /> ให้คะแนน
-                                                    </Button>
-                                                    {(submission.grade === undefined || submission.grade === null) && (
-                                                        <Button variant="warning" onClick={() => handleReturnAssignment(submission)}>
-                                                            <FaUndoAlt /> ส่งคืน
-                                                        </Button>
-                                                    )}
-                                                </>
-                                            )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </Table>
+                    <Card className="mb-4 bg-light">
+                        <Card.Body>
+                            <h5>{selectedAssignment.title}</h5>
+                            <p>{selectedAssignment.description}</p>
+                            <Badge bg="info">คะแนนเต็ม: {selectedAssignment.points}</Badge>
+                            <Badge bg="secondary" className="ms-2">กำหนดส่ง: {new Date(selectedAssignment.dueDateTime).toLocaleString()}</Badge>
+                        </Card.Body>
+                    </Card>
+                )}
+
+                {selectedAssignment && filteredStudents.map(([studentId, studentName]) => renderSubmissionCard(studentId, studentName))}
+                
+                {filteredStudents.length === 0 && (
+                    <Alert variant="info">
+                        ไม่พบนักเรียนที่ตรงกับเงื่อนไขการค้นหาหรือการกรอง
+                    </Alert>
                 )}
             </Card.Body>
+
+
 
             <Modal show={showGradingModal} onHide={handleCloseGradingModal}>
                 <Modal.Header closeButton>

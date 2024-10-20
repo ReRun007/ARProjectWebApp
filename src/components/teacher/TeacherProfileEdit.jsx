@@ -3,9 +3,10 @@ import { Container, Row, Col, Card, Form, Button, Alert, Image } from 'react-boo
 import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, listAll } from 'firebase/storage';
-import { db, storage } from '../../firebase';
+import { db, storage, auth  } from '../../firebase';
 import { useUserAuth } from '../../context/UserAuthContext';
-import { FaUser, FaEnvelope, FaCalendar, FaSchool, FaImage } from 'react-icons/fa';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { FaLock } from 'react-icons/fa';
 import Header from './Header';
 
 function TeacherProfileEdit() {
@@ -23,6 +24,12 @@ function TeacherProfileEdit() {
     const [success, setSuccess] = useState("");
     const { user } = useUserAuth();
     const navigate = useNavigate();
+
+    const [currentPassword, setCurrentPassword] = useState("");
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmNewPassword, setConfirmNewPassword] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [passwordSuccess, setPasswordSuccess] = useState("");
 
     useEffect(() => {
         const fetchTeacherData = async () => {
@@ -101,6 +108,33 @@ function TeacherProfileEdit() {
         } catch (err) {
             console.error("Update profile error:", err);
             setError(err.message);
+        }
+    };
+
+    const handlePasswordChange = async (e) => {
+        e.preventDefault();
+        setPasswordError("");
+        setPasswordSuccess("");
+    
+        if (newPassword !== confirmNewPassword) {
+            setPasswordError("รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน");
+            return;
+        }
+    
+        try {
+            const credential = EmailAuthProvider.credential(
+                auth.currentUser.email,
+                currentPassword
+            );
+            await reauthenticateWithCredential(auth.currentUser, credential);
+            await updatePassword(auth.currentUser, newPassword);
+            setPasswordSuccess("อัปเดตรหัสผ่านสำเร็จ");
+            setCurrentPassword("");
+            setNewPassword("");
+            setConfirmNewPassword("");
+        } catch (error) {
+            console.error("Password change error:", error);
+            setPasswordError("เกิดข้อผิดพลาดในการเปลี่ยนรหัสผ่าน: " + error.message);
         }
     };
 
@@ -213,6 +247,50 @@ function TeacherProfileEdit() {
 
                                     <div className="d-grid gap-2">
                                         <Button variant="primary" type="submit" size="lg">บันทึกการเปลี่ยนแปลง</Button>
+                                    </div>
+                                </Form>
+                            </Card.Body>
+                        </Card>
+
+                        <Card className="shadow-lg">
+                            <Card.Body className="p-5">
+                                <h3 className="text-center mb-4">เปลี่ยนรหัสผ่าน</h3>
+                                {passwordError && <Alert variant='danger'>{passwordError}</Alert>}
+                                {passwordSuccess && <Alert variant='success'>{passwordSuccess}</Alert>}
+
+                                <Form onSubmit={handlePasswordChange}>
+                                    <Form.Group className="mb-3" controlId="currentPassword">
+                                        <Form.Label><FaLock className="me-2" />รหัสผ่านปัจจุบัน</Form.Label>
+                                        <Form.Control 
+                                            type="password"
+                                            value={currentPassword}
+                                            onChange={(e) => setCurrentPassword(e.target.value)}
+                                            required
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-3" controlId="newPassword">
+                                        <Form.Label><FaLock className="me-2" />รหัสผ่านใหม่</Form.Label>
+                                        <Form.Control 
+                                            type="password"
+                                            value={newPassword}
+                                            onChange={(e) => setNewPassword(e.target.value)}
+                                            required
+                                        />
+                                    </Form.Group>
+
+                                    <Form.Group className="mb-4" controlId="confirmNewPassword">
+                                        <Form.Label><FaLock className="me-2" />ยืนยันรหัสผ่านใหม่</Form.Label>
+                                        <Form.Control 
+                                            type="password"
+                                            value={confirmNewPassword}
+                                            onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                            required
+                                        />
+                                    </Form.Group>
+
+                                    <div className="d-grid">
+                                        <Button variant="primary" type="submit">เปลี่ยนรหัสผ่าน</Button>
                                     </div>
                                 </Form>
                             </Card.Body>

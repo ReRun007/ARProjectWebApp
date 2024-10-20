@@ -116,7 +116,7 @@ function QuizDisplay({ classId }) {
             }
         } else {
             // เพิ่มคำถามใหม่
-            updatedQuestions.push({ ...editedQuestion, id: Date.now().toString() });
+            updatedQuestions.push({ ...editedQuestion});
         }
         setCurrentQuiz({ ...currentQuiz, questions: updatedQuestions });
         setShowQuestionModal(false);

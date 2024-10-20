@@ -208,8 +208,6 @@ ARPROJECT/
     │       ├── EmptyClassroomState.jsx
     │       ├── Header.jsx
     │       ├── Home.jsx
-    │       ├── LessonManagement.jsx
-    │       ├── QuizManagement.jsx
     │       ├── TeacherProfileEdit.jsx
     ├── context/
     │   └── UserAuthContext.jsx

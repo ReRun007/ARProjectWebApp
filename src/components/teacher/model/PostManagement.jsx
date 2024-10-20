@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Form, Button, Alert, Badge, Modal, ListGroup, Spinner, Image } from 'react-bootstrap';
-import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs, orderBy, serverTimestamp, onSnapshot, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../../../firebase';
 import { useUserAuth } from '../../../context/UserAuthContext';
-import { FaImage, FaPlusCircle, FaUser, FaClock, FaPaperclip, FaDownload, FaComment, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaImage, FaPlusCircle, FaUser, FaClock, FaPaperclip, FaDownload, FaComment, FaChevronDown, FaChevronUp, FaEdit } from 'react-icons/fa';
 
 function PostManagement({ classId }) {
     const [posts, setPosts] = useState([]);
@@ -23,6 +23,8 @@ function PostManagement({ classId }) {
     const [loadingComments, setLoadingComments] = useState(true);
     const [commentUsers, setCommentUsers] = useState({});
     const [expandedComments, setExpandedComments] = useState({});
+    const [editingPost, setEditingPost] = useState(null);
+    const [showEditModal, setShowEditModal] = useState(false);
 
     useEffect(() => {
         fetchPosts();
@@ -209,6 +211,41 @@ function PostManagement({ classId }) {
         } catch (error) {
             console.error("Error posting: ", error);
             setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการโพสต์ กรุณาลองอีกครั้ง' });
+        }
+    };
+
+    const handleEditPost = async (e) => {
+        e.preventDefault();
+        if (!editingPost) return;
+
+        try {
+            let fileUrl = editingPost.fileUrl;
+            let fileName = editingPost.fileName;
+
+            if (file) {
+                const storageRef = ref(storage, `User/${user.email}/Post/${file.name}`);
+                await uploadBytes(storageRef, file);
+                fileUrl = await getDownloadURL(storageRef);
+                fileName = file.name;
+            }
+
+            const postRef = doc(db, 'Posts', editingPost.id);
+            await updateDoc(postRef, {
+                content: editingPost.content,
+                fileUrl,
+                fileName,
+                updatedAt: serverTimestamp()
+            });
+
+            setShowEditModal(false);
+            setEditingPost(null);
+            setFile(null);
+            setPreviewUrl(null);
+            fetchPosts();
+            setAlertMessage({ type: 'success', text: 'แก้ไขโพสต์สำเร็จ!' });
+        } catch (error) {
+            console.error("Error editing post: ", error);
+            setAlertMessage({ type: 'danger', text: 'เกิดข้อผิดพลาดในการแก้ไขโพสต์ กรุณาลองอีกครั้ง' });
         }
     };
 
@@ -450,8 +487,20 @@ function PostManagement({ classId }) {
                                 </Badge>
                             )}
                             {renderFileAttachment(post)}
+
                             <div className="mt-3">
-                                <Button variant="outline-primary" size="sm" onClick={() => handleShowCommentModal(post)}>
+                                {post.createdBy === user.uid && (
+                                    <Button variant="outline-secondary" size="sm" onClick={() => {
+                                        setEditingPost(post);
+                                        setShowEditModal(true);
+                                        setFile(null);
+                                        setPreviewUrl(null);
+                                    }}>
+                                        <FaEdit className="me-1" /> แก้ไขโพส
+                                    </Button>
+                                )}
+                                <br /> <br />
+                                <Button variant="outline-primary" size="sm" onClick={() => handleShowCommentModal(post)} className="me-2">
                                     <FaComment className="me-1" /> ความคิดเห็น ({comments[post.id]?.length || 0})
                                 </Button>
                             </div>
@@ -514,6 +563,48 @@ function PostManagement({ classId }) {
                     ) : (
                         <p>ไม่พบความคิดเห็น</p>
                     )}
+                </Modal.Body>
+            </Modal>
+
+            <Modal show={showEditModal} onHide={() => setShowEditModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>แก้ไขโพสต์</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Form onSubmit={handleEditPost}>
+                        <Form.Group className="mb-3">
+                            <Form.Control
+                                as="textarea"
+                                rows={3}
+                                value={editingPost?.content || ''}
+                                onChange={(e) => setEditingPost({ ...editingPost, content: e.target.value })}
+                                placeholder="แก้ไขโพสต์ของคุณที่นี่..."
+                            />
+                        </Form.Group>
+                        <Form.Group className="mb-3">
+                            <Form.Label>แก้ไขไฟล์แนบ</Form.Label>
+                            <Form.Control
+                                type="file"
+                                onChange={handleFileChange}
+                            />
+                        </Form.Group>
+                        {previewUrl && (
+                            <div className="mb-3">
+                                <img src={previewUrl} alt="Preview" style={{ maxWidth: '100%', maxHeight: '200px' }} className="rounded" />
+                            </div>
+                        )}
+                        {editingPost?.fileUrl && !previewUrl && (
+                            <div className="mb-3">
+                                <p>ไฟล์แนบปัจจุบัน: {editingPost.fileName}</p>
+                                {editingPost.fileUrl.includes('image') && (
+                                    <img src={editingPost.fileUrl} alt="Current attachment" style={{ maxWidth: '100%', maxHeight: '200px' }} className="rounded" />
+                                )}
+                            </div>
+                        )}
+                        <Button variant="primary" type="submit">
+                            บันทึกการแก้ไข
+                        </Button>
+                    </Form>
                 </Modal.Body>
             </Modal>
         </>

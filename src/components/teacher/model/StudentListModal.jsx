@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { Modal, Table, Button } from 'react-bootstrap';
+import { Modal, Button, Card, Row, Col, Form, InputGroup, Badge, Image } from 'react-bootstrap';
+import { FaSearch, FaUserGraduate, FaEnvelope, FaCalendarAlt, FaTrashAlt, FaUser } from 'react-icons/fa';
 
 const StudentListModal = ({ show, onHide, students, onRemoveStudent }) => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [studentToRemove, setStudentToRemove] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const formatDate = (dateString) => {
     if (!dateString) return 'ไม่ระบุ';
@@ -24,49 +26,80 @@ const StudentListModal = ({ show, onHide, students, onRemoveStudent }) => {
     setStudentToRemove(null);
   };
 
+  const filteredStudents = students.filter(student =>
+    student.FirstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.LastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.Username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.Email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getInitials = (firstName, lastName) => {
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  };
+
   return (
     <>
-      <Modal show={show} onHide={onHide} size="lg">
-        <Modal.Header closeButton>
-          <Modal.Title>รายชื่อนักเรียนในห้องเรียน</Modal.Title>
+      <Modal show={show} onHide={onHide} size="xl">
+        <Modal.Header closeButton className="bg-primary text-white">
+          <Modal.Title><FaUserGraduate className="me-2" />รายชื่อนักเรียนในห้องเรียน</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Table striped bordered hover responsive>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>ชื่อ</th>
-                <th>นามสกุล</th>
-                <th>Username</th>
-                <th>อีเมล</th>
-                <th>วันที่ลงทะเบียน</th>
-                <th>นำออก</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student, index) => (
-                <tr key={student.id}>
-                  <td>{index + 1}</td>
-                  <td>{student.FirstName}</td>
-                  <td>{student.LastName}</td>
-                  <td>{student.Username}</td>
-                  <td>{student.Email}</td>
-                  <td>{formatDate(student.enrollmentDate)}</td>
-                  <td>
-                    <Button 
-                      variant="danger" 
+          <InputGroup className="mb-3">
+            <InputGroup.Text><FaSearch /></InputGroup.Text>
+            <Form.Control
+              placeholder="ค้นหานักเรียน..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </InputGroup>
+          <Row xs={1} md={2} lg={3} className="g-4">
+            {filteredStudents.map((student, index) => (
+              <Col key={student.id}>
+                <Card className="h-100 shadow-sm">
+                  <Card.Body>
+                    <div className="d-flex align-items-center mb-3">
+                      {student.URLImage ? (
+                        <Image 
+                          src={student.URLImage} 
+                          roundedCircle 
+                          style={{ width: '60px', height: '60px', objectFit: 'cover' }}
+                          className="me-3"
+                        />
+                      ) : (
+                        <div 
+                          className="rounded-circle bg-primary text-white d-flex justify-content-center align-items-center me-3"
+                          style={{ width: '60px', height: '60px', fontSize: '24px' }}
+                        >
+                          {getInitials(student.FirstName, student.LastName)}
+                        </div>
+                      )}
+                      <div>
+                        <Card.Title className="mb-0">{student.FirstName} {student.LastName}</Card.Title>
+                        <Card.Subtitle className="text-muted">@{student.Username}</Card.Subtitle>
+                      </div>
+                    </div>
+                    <Card.Text>
+                      <FaEnvelope className="me-2" />{student.Email}<br />
+                      <FaCalendarAlt className="me-2" />วันที่ลงทะเบียน: {formatDate(student.enrollmentDate)}
+                    </Card.Text>
+                    <Button
+                      variant="outline-danger"
                       size="sm"
                       onClick={() => handleRemoveClick(student)}
                     >
-                      นำออก
+                      <FaTrashAlt className="me-2" />นำออก
                     </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+          {filteredStudents.length === 0 && (
+            <p className="text-center text-muted mt-4">ไม่พบนักเรียนที่ตรงกับการค้นหา</p>
+          )}
         </Modal.Body>
         <Modal.Footer>
+          <Badge bg="primary" className="me-2">จำนวนนักเรียนทั้งหมด: {students.length}</Badge>
           <Button variant="secondary" onClick={onHide}>
             ปิด
           </Button>
@@ -74,11 +107,11 @@ const StudentListModal = ({ show, onHide, students, onRemoveStudent }) => {
       </Modal>
 
       <Modal show={showConfirmModal} onHide={() => setShowConfirmModal(false)}>
-        <Modal.Header closeButton>
+        <Modal.Header closeButton className="bg-danger text-white">
           <Modal.Title>ยืนยันการนำนักเรียนออกจากห้องเรียน</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          คุณแน่ใจหรือไม่ที่ต้องการนำ {studentToRemove?.FirstName} {studentToRemove?.LastName} ออกจากห้องเรียน?
+          คุณแน่ใจหรือไม่ที่ต้องการนำ <strong>{studentToRemove?.FirstName} {studentToRemove?.LastName}</strong> ออกจากห้องเรียน?
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowConfirmModal(false)}>
